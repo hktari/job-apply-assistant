@@ -5,15 +5,12 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 import FirecrawlApp, { ScrapeResponse } from '@mendable/firecrawl-js';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, JobStatus } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { JobRelevanceAnalyzer, AIRelevanceResponse } from './jobRelevanceAnalyzer.js';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/binary';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 
 // Define schemas using zod
@@ -74,24 +71,24 @@ class JobHuntingAgent {
         try {
             const data = {
                 title: job.job_title,
-                company: job.company || null,
-                description: job.role || null,
+                company: "company" in job && job.company ? job.company : "",
+                description: "role" in job && job.role ? job.role : "",
                 url: job.job_link,
                 source: new URL(job.job_link).hostname,
-                status: 'PENDING',
+                status: JobStatus.PENDING,
                 is_relevant: job.isRelevant,
                 relevance_reasoning: job.reasoning || null,
-                region: 'region' in job ? job.region : null,
-                job_type: 'job_type' in job ? job.job_type : null,
-                experience: 'experience' in job ? job.experience : null,
-                salary: 'salary' in job ? job.salary : null,
+                region: 'region' in job ? job.region! : null,
+                job_type: 'job_type' in job ? job.job_type! : null,
+                experience: 'experience' in job ? job.experience! : null,
+                salary: 'salary' in job ? job.salary! : null,
                 posted_date: 'posted_date' in job ? new Date(job.posted_date) : 'posted_date_iso' in job ? new Date(job.posted_date_iso) : null,
                 notes: null
             };
 
             await this.prisma.job.create({ data });
             console.log(`Stored job: ${job.job_title}`);
-        } catch (error) {
+        } catch (error: unknown) {
             if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
                 console.log(`Duplicate job detected: ${job.job_title}`);
             } else {
