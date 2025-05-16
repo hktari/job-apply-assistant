@@ -57,9 +57,8 @@ class JobHuntingAgent {
         this.relevanceAnalyzer = new JobRelevanceAnalyzer();
     }
 
-    async findJobs(): Promise<JobPosting[]> {
-        const jobListUrl = 'https://slo-tech.com/delo';
-        console.log(`Progress: Starting job extraction from ${jobListUrl}...`);
+    async findJobs(jobListUrls: string[]): Promise<{ matchedJobs: JobPosting[], irrelevantJobs: z.infer<typeof JobListPageItemSchema>[] }> {
+        console.log(`Progress: Starting job extraction from ${jobListUrls.length} URL(s)...`);
 
         const dateThreshold = new Date();
         dateThreshold.setMonth(dateThreshold.getMonth() - 1);
@@ -67,35 +66,44 @@ class JobHuntingAgent {
 
         let initialScrapedJobs: z.infer<typeof JobListPageItemSchema>[] = [];
 
-        // Step 1: Scrape job listing page
-        try {
-            console.log('Progress: Scraping initial job list...');
-            const initialScrapeResult = await this.firecrawl.scrapeUrl(jobListUrl, {
-                formats: ['json'],
-                jsonOptions: {
-                    schema: JobListPageScrapeSchema,
-                    prompt: `Extract all job postings from this page. For each job, provide its title (job_title), the direct URL to the job details (job_link), and the posting date (posted_date_iso). Convert all posting dates to YYYY-MM-DD format. For example, if a job was posted 'today' (assuming today is ${today_iso}), 'yesterday', or '2 days ago', calculate and use the YYYY-MM-DD format. If a date like '15.03.2024' is given, convert it to '2024-03-15'. Ensure job_link is a full URL.`,
-                },
-                onlyMainContent: true,
-            }) as ScrapeResponse;
+        // Step 1: Scrape job listing pages
+        for (const jobListUrl of jobListUrls) {
+            console.log(`Progress: Scraping initial job list from ${jobListUrl}...`);
+            try {
+                const initialScrapeResult = await this.firecrawl.scrapeUrl(jobListUrl, {
+                    formats: ['json'],
+                    jsonOptions: {
+                        schema: JobListPageScrapeSchema,
+                        prompt: `Extract all job postings from this page. For each job, provide its title (job_title), the direct URL to the job details (job_link), and the posting date (posted_date_iso). Convert all posting dates to YYYY-MM-DD format. For example, if a job was posted 'today' (assuming today is ${today_iso}), 'yesterday', or '2 days ago', calculate and use the YYYY-MM-DD format. If a date like '15.03.2024' is given, convert it to '2024-03-15'. Ensure job_link is a full URL.`,
+                    },
+                    onlyMainContent: true,
+                }) as ScrapeResponse;
 
-            if (!initialScrapeResult.success || !initialScrapeResult.json) {
-                throw new Error(`Failed to scrape job list: ${initialScrapeResult.error || 'No data returned'}`);
+                if (!initialScrapeResult.success || !initialScrapeResult.json) {
+                    console.warn(`Failed to scrape job list from ${jobListUrl}: ${initialScrapeResult.error || 'No data returned'}. Skipping this URL.`);
+                    continue;
+                }
+
+                const parsedInitialData = JobListPageScrapeSchema.safeParse(initialScrapeResult.json);
+                if (!parsedInitialData.success) {
+                    console.error(`Failed to parse initial job list data from ${jobListUrl}:`, parsedInitialData.error.errors);
+                    console.log(`Received data from ${jobListUrl}:`, JSON.stringify(initialScrapeResult.json, null, 2));
+                    console.warn(`Could not parse data from job list page ${jobListUrl}. Skipping this URL.`);
+                    continue;
+                }
+                initialScrapedJobs.push(...parsedInitialData.data.job_postings);
+                console.log(`Progress: Found ${parsedInitialData.data.job_postings.length} jobs from ${jobListUrl}. Total initial jobs: ${initialScrapedJobs.length}`);
+
+            } catch (e: any) {
+                console.error(`Error in initial job list scrape for ${jobListUrl}: ${e.message}`);
             }
-
-            const parsedInitialData = JobListPageScrapeSchema.safeParse(initialScrapeResult.json);
-            if (!parsedInitialData.success) {
-                console.error('Failed to parse initial job list data:', parsedInitialData.error.errors);
-                console.log('Received data:', JSON.stringify(initialScrapeResult.json, null, 2));
-                throw new Error('Could not parse data from job list page.');
-            }
-            initialScrapedJobs = parsedInitialData.data.job_postings;
-            console.log(`Progress: Found ${initialScrapedJobs.length} jobs in initial scrape.`);
-
-        } catch (e: any) {
-            console.error('Error in initial job list scrape:', e.message);
-            return [];
         }
+        
+        if (initialScrapedJobs.length === 0) {
+            console.log('Progress: No jobs found in any initial scrape.');
+            return { matchedJobs: [], irrelevantJobs: [] };
+        }
+        console.log(`Progress: Total ${initialScrapedJobs.length} jobs found in initial scrapes.`);
 
         // Step 2: Filter by posted date
         const recentJobs = initialScrapedJobs.filter(job => {
@@ -111,7 +119,7 @@ class JobHuntingAgent {
 
         if (recentJobs.length === 0) {
             console.log('Progress: No recent job listings found.');
-            return [];
+            return { matchedJobs: [], irrelevantJobs: [] };
         }
 
 
@@ -147,18 +155,31 @@ class JobHuntingAgent {
         const trulyRelevantJobs = relevantJobsFromAnalysis
             .filter(item => item.relevance.isRelevant)
             .map(item => item.job);
+        
+        const irrelevantJobsForOutput = relevantJobsFromAnalysis
+            .filter(item => !item.relevance.isRelevant)
+            .map(item => item.job);
 
-        console.log(`Progress: ${relevantJobsFromAnalysis.filter(item => item.relevance.isRelevant).length} jobs are considered relevant after AI analysis.`);
-        console.log(`Progress: ${relevantJobsFromAnalysis.filter(item => !item.relevance.isRelevant).length} jobs were filtered out by AI analysis.`);
+        console.log(`Progress: ${trulyRelevantJobs.length} jobs are considered relevant after AI analysis.`);
+        console.log(`Progress: ${irrelevantJobsForOutput.length} jobs were filtered out by AI analysis as irrelevant.`);
 
 
         if (trulyRelevantJobs.length === 0) {
             console.log('Progress: No relevant job listings found after AI analysis.');
-            return [];
+            // Still write irrelevant jobs to file
+            const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14); // YYYYMMDDHHMMSS
+            const outputPath = path.resolve(__dirname, `job-results-${timestamp}.json`);
+            const outputData = {
+                matchedJobs: [],
+                irrelevantJobs: irrelevantJobsForOutput
+            };
+            fs.writeFileSync(outputPath, JSON.stringify(outputData, null, 2));
+            console.log(`Progress: Job search completed! 0 matched jobs. ${irrelevantJobsForOutput.length} irrelevant job(s) written to ${outputPath}`);
+            return outputData;
         }
 
         // Step 3: Scrape job listing details for filtered posts
-        const allJobDetails: JobPosting[] = [];
+        const matchedJobs: JobPosting[] = [];
         console.log(`Progress: Scraping details for ${trulyRelevantJobs.length} relevant jobs...`);
 
         for (let i = 0; i < trulyRelevantJobs.length; i++) {
@@ -187,7 +208,7 @@ class JobHuntingAgent {
                 }
 
                 const jobDetails = parsedDetailData.data;
-                allJobDetails.push({
+                matchedJobs.push({
                     ...jobDetails,
                     job_title: jobListItem.job_title,
                     job_link: jobListItem.job_link,
@@ -203,14 +224,20 @@ class JobHuntingAgent {
         }
 
         // Step 4: Write results to JSON file
-        if (allJobDetails.length > 0) {
-            const outputPath = path.resolve(__dirname, 'job-results.json');
-            fs.writeFileSync(outputPath, JSON.stringify(allJobDetails, null, 2));
-            console.log(`Progress: Job search completed! ${allJobDetails.length} job details written to ${outputPath}`);
+        const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14); // YYYYMMDDHHMMSS
+        const outputPath = path.resolve(__dirname, `job-results-${timestamp}.json`);
+        const outputData = {
+            matchedJobs: matchedJobs,
+            irrelevantJobs: irrelevantJobsForOutput
+        };
+
+        if (matchedJobs.length > 0 || irrelevantJobsForOutput.length > 0) {
+            fs.writeFileSync(outputPath, JSON.stringify(outputData, null, 2));
+            console.log(`Progress: Job search completed! ${matchedJobs.length} matched job details and ${irrelevantJobsForOutput.length} irrelevant jobs written to ${outputPath}`);
         } else {
-            console.log('Progress: No job details could be extracted for recent jobs.');
+            console.log('Progress: No job details could be extracted and no irrelevant jobs found.');
         }
-        return allJobDetails;
+        return outputData;
     }
 }
 
@@ -221,7 +248,20 @@ async function main() {
         process.exit(1);
     }
     const agent = new JobHuntingAgent(firecrawlKey);
-    await agent.findJobs();
+
+    // Example URLs - replace with actual URLs or load them from a config
+    const jobListUrls = [
+        "https://www.bettercareer.si/jobs",
+        "https://www.optius.com/iskalci/prosta-delovna-mesta/?Keywords=&Fields%5B%5D=37&doSearch=&Time="
+        // Add more URLs as needed
+    ];
+
+    if (jobListUrls.length === 0) {
+        console.log("No job list URLs provided. Exiting.");
+        process.exit(0);
+    }
+
+    await agent.findJobs(jobListUrls);
 }
 
 main();
