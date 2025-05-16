@@ -6,14 +6,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum JobStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  APPLIED
+  INTERVIEW
+  REJECTED_BY_COMPANY
+}
+
 model Job {
   id                 Int       @id @default(autoincrement())
   title              String
-  company            String
-  description        String
+  company            String?
+  description        String?
   url                String    @unique
   source             String
-  status             String
+  status             JobStatus @default(PENDING)
+  is_relevant        Boolean   @default(false)
   relevance_reasoning String?
   region             String?
   job_type           String?
@@ -31,7 +41,7 @@ model Application {
   id            Int      @id @default(autoincrement())
   job           Job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
   job_id        Int
-  status        String
+  status        JobStatus
   applied_at    DateTime @default(now()) @db.Timestamp(6)
   updated_at    DateTime @updatedAt @db.Timestamp(6)
   cover_letter  String?

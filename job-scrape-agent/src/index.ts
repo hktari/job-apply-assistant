@@ -70,24 +70,26 @@ class JobHuntingAgent {
         return existingJob !== null;
     }
 
-    private async storeJob(job: JobPosting & AIRelevanceResponse): Promise<void> {
+    private async storeJob(job: (JobPosting | JobListPageItem) & AIRelevanceResponse): Promise<void> {
         try {
-            await this.prisma.job.create({
-                data: {
-                    title: job.job_title,
-                    company: job.company || 'Unknown',
-                    description: job.role || '',
-                    url: job.job_link,
-                    source: new URL(job.job_link).hostname,
-                    status: 'NEW',
-                    relevance_reasoning: job.reasoning,
-                    region: job.region,
-                    job_type: job.job_type,
-                    experience: job.experience,
-                    salary: job.salary,
-                    posted_date: job.posted_date ? new Date(job.posted_date) : null
-                }
-            });
+            const data = {
+                title: job.job_title,
+                company: job.company || null,
+                description: job.role || null,
+                url: job.job_link,
+                source: new URL(job.job_link).hostname,
+                status: 'PENDING',
+                is_relevant: job.isRelevant,
+                relevance_reasoning: job.reasoning || null,
+                region: 'region' in job ? job.region : null,
+                job_type: 'job_type' in job ? job.job_type : null,
+                experience: 'experience' in job ? job.experience : null,
+                salary: 'salary' in job ? job.salary : null,
+                posted_date: 'posted_date' in job ? new Date(job.posted_date) : 'posted_date_iso' in job ? new Date(job.posted_date_iso) : null,
+                notes: null
+            };
+
+            await this.prisma.job.create({ data });
             console.log(`Stored job: ${job.job_title}`);
         } catch (error) {
             if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -96,6 +98,16 @@ class JobHuntingAgent {
                 console.error(`Error storing job ${job.job_title}:`, error);
                 throw error;
             }
+        }
+    }
+
+    async storeJobsInDatabase(matchedJobs: (JobPosting & AIRelevanceResponse)[], irrelevantJobs: (JobListPageItem & AIRelevanceResponse)[]) {
+        console.log(`Progress: Updating database with ${matchedJobs.length} matched jobs and ${irrelevantJobs.length} irrelevant jobs...`);
+        for (const job of matchedJobs) {
+            await this.storeJob(job);
+        }
+        for (const job of irrelevantJobs) {
+            await this.storeJob(job);
         }
     }
 
@@ -159,8 +171,12 @@ class JobHuntingAgent {
         }
         console.log(`Progress: Total ${initialScrapedJobs.length} jobs found in initial scrapes.`);
 
+        // Step 1.1: deduplicate jobs
+        const deduplicatedJobs = initialScrapedJobs.filter((job) => !this.isJobDuplicate(job.job_link));
+        console.log(`Progress: Deduplicated ${initialScrapedJobs.length - deduplicatedJobs.length} jobs.`);
+
         // Step 2: Filter by posted date
-        const recentJobs = initialScrapedJobs.filter(job => {
+        const recentJobs = deduplicatedJobs.filter(job => {
             try {
                 const jobDate = new Date(job.posted_date_iso);
                 return jobDate >= dateThreshold;
@@ -321,7 +337,13 @@ async function main() {
         process.exit(0);
     }
 
-    await agent.findJobs(jobListUrls);
+    const result = await agent.findJobs(jobListUrls);
+    console.log("Job search completed.");
+    console.log("Matched Jobs:", result.matchedJobs.length);
+    console.log("Irrelevant Jobs:", result.irrelevantJobs.length);
+
+    // update database
+    await agent.storeJobsInDatabase(result.matchedJobs, result.irrelevantJobs);
 }
 
 main();
