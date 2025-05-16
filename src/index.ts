@@ -3,6 +3,13 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 import FirecrawlApp, { ScrapeResponse } from '@mendable/firecrawl-js';
+// For __dirname
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { analyzeJobTitleRelevance } from './jobRelevanceAnalyzer.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Load environment variables from .env file if it exists
 dotenv.config();
@@ -35,6 +42,7 @@ const JobPostingSchema = JobDetailScrapeSchema.extend({
     job_title: z.string().min(1),
     job_link: z.string().url(),
     posted_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD
+    job_posting_id: z.string().min(1).describe("Unique identifier for the job posting, typically the job link itself."),
 });
 
 type JobPosting = z.infer<typeof JobPostingSchema>;
@@ -103,16 +111,56 @@ class JobHuntingAgent {
             return [];
         }
 
-        
 
+        // Step 2.1: Filter by relevance using OpenAI
+        // const jobPreferences = await getJobPreferences();
+        let relevantJobsFromAnalysis: Array<{ job: z.infer<typeof JobListPageItemSchema>, relevance: { isRelevant: boolean, reasoning: string } }> = [];
+        try {
+            const relevanceResults = await Promise.allSettled(
+                recentJobs.map(job => analyzeJobTitleRelevance(job.job_title))
+            );
+            relevantJobsFromAnalysis = relevanceResults
+                .map((result, idx) => {
+                    if (result.status === 'fulfilled') {
+                        // Ensure result.value has the expected structure
+                        if (typeof result.value === 'object' && result.value !== null && 'isRelevant' in result.value) {
+                            return { job: recentJobs[idx], relevance: result.value as { isRelevant: boolean, reasoning: string } };
+                        } else {
+                            console.warn(`Relevance check for "${recentJobs[idx].job_title}" returned unexpected data:`, result.value);
+                            return null; // Or handle as not relevant
+                        }
+                    } else {
+                        console.warn(`Relevance check failed for "${recentJobs[idx].job_title}": ${result.reason}`);
+                        return null;
+                    }
+                })
+                .filter((item): item is { job: z.infer<typeof JobListPageItemSchema>, relevance: { isRelevant: boolean, reasoning: string } } => item !== null);
+        } catch (err) {
+            console.error('Error during job relevance analysis:', err);
+            // relevantJobsFromAnalysis will remain empty or partially filled
+        }
+
+        // Filter jobs based on relevance
+        const trulyRelevantJobs = relevantJobsFromAnalysis
+            .filter(item => item.relevance.isRelevant)
+            .map(item => item.job);
+
+        console.log(`Progress: ${relevantJobsFromAnalysis.filter(item => item.relevance.isRelevant).length} jobs are considered relevant after AI analysis.`);
+        console.log(`Progress: ${relevantJobsFromAnalysis.filter(item => !item.relevance.isRelevant).length} jobs were filtered out by AI analysis.`);
+
+
+        if (trulyRelevantJobs.length === 0) {
+            console.log('Progress: No relevant job listings found after AI analysis.');
+            return [];
+        }
 
         // Step 3: Scrape job listing details for filtered posts
         const allJobDetails: JobPosting[] = [];
-        console.log('Progress: Scraping details for recent jobs...');
+        console.log(`Progress: Scraping details for ${trulyRelevantJobs.length} relevant jobs...`);
 
-        for (let i = 0; i < recentJobs.length; i++) {
-            const jobListItem = recentJobs[i];
-            console.log(`Progress: Scraping details for "${jobListItem.job_title}" (${i + 1}/${recentJobs.length})...`);
+        for (let i = 0; i < trulyRelevantJobs.length; i++) {
+            const jobListItem = trulyRelevantJobs[i];
+            console.log(`Progress: Scraping details for "${jobListItem.job_title}" (${i + 1}/${trulyRelevantJobs.length})...`);
             try {
                 const detailScrapeResult = await this.firecrawl.scrapeUrl(jobListItem.job_link, {
                     formats: ['json'],
@@ -141,6 +189,7 @@ class JobHuntingAgent {
                     job_title: jobListItem.job_title,
                     job_link: jobListItem.job_link,
                     posted_date: jobListItem.posted_date_iso,
+                    job_posting_id: jobListItem.job_link, // Assign job_link as job_posting_id
                 });
 
             } catch (e: any) {
