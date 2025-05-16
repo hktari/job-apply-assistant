@@ -21,6 +21,7 @@ const JobListPageItemSchema = z.object({
     job_title: z.string().min(1, "Job title cannot be empty"),
     job_link: z.string().url("Invalid URL format for job link"),
     posted_date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").describe("The date the job was posted, in YYYY-MM-DD format."),
+    constraints: z.string().nullable().optional().describe("Any additional constraints mentioned for the job, e.g., country restrictions like 'USA only'."),
 });
 
 const JobListPageScrapeSchema = z.object({
@@ -46,7 +47,8 @@ const JobPostingSchema = JobDetailScrapeSchema.extend({
 });
 
 type JobPosting = z.infer<typeof JobPostingSchema>;
-
+type JobListPageItem = z.infer<typeof JobListPageItemSchema>;
+type JobListPageScrape = z.infer<typeof JobListPageScrapeSchema>;
 
 class JobHuntingAgent {
     firecrawl: FirecrawlApp;
@@ -57,7 +59,7 @@ class JobHuntingAgent {
         this.relevanceAnalyzer = new JobRelevanceAnalyzer();
     }
 
-    async findJobs(jobListUrls: string[]): Promise<{ matchedJobs: JobPosting[], irrelevantJobs: z.infer<typeof JobListPageItemSchema>[] }> {
+    async findJobs(jobListUrls: string[]): Promise<{ matchedJobs: (JobPosting & AIRelevanceResponse)[], irrelevantJobs: (JobListPageItem & AIRelevanceResponse)[] }> {
         console.log(`Progress: Starting job extraction from ${jobListUrls.length} URL(s)...`);
 
         const dateThreshold = new Date();
@@ -74,7 +76,19 @@ class JobHuntingAgent {
                     formats: ['json'],
                     jsonOptions: {
                         schema: JobListPageScrapeSchema,
-                        prompt: `Extract all job postings from this page. For each job, provide its title (job_title), the direct URL to the job details (job_link), and the posting date (posted_date_iso). Convert all posting dates to YYYY-MM-DD format. For example, if a job was posted 'today' (assuming today is ${today_iso}), 'yesterday', or '2 days ago', calculate and use the YYYY-MM-DD format. If a date like '15.03.2024' is given, convert it to '2024-03-15'. Ensure job_link is a full URL.`,
+                        prompt: `
+                        Extract all job postings from this page. 
+                        
+                        For each job, provide its title (job_title), 
+                        the direct URL to the job details (job_link), 
+                        the posting date (posted_date_iso),
+                        and any constraints mentioned (constraints), such as country restrictions (e.g., "USA only").
+                        
+                        Convert all posting dates to YYYY-MM-DD format. 
+                        For example, if a job was posted 'today' (assuming today is ${today_iso}), 'yesterday', or '2 days ago', calculate and use the YYYY-MM-DD format. 
+                        If a date like '15.03.2024' is given, convert it to '2024-03-15'. 
+                        
+                        Ensure job_link is a full URL.`,
                     },
                     onlyMainContent: true,
                 }) as ScrapeResponse;
@@ -98,7 +112,7 @@ class JobHuntingAgent {
                 console.error(`Error in initial job list scrape for ${jobListUrl}: ${e.message}`);
             }
         }
-        
+
         if (initialScrapedJobs.length === 0) {
             console.log('Progress: No jobs found in any initial scrape.');
             return { matchedJobs: [], irrelevantJobs: [] };
@@ -154,11 +168,10 @@ class JobHuntingAgent {
         // Filter jobs based on relevance
         const trulyRelevantJobs = relevantJobsFromAnalysis
             .filter(item => item.relevance.isRelevant)
-            .map(item => item.job);
-        
+
         const irrelevantJobsForOutput = relevantJobsFromAnalysis
             .filter(item => !item.relevance.isRelevant)
-            .map(item => item.job);
+            .map(item => ({ ...item.job, ...item.relevance })); // Combine job and relevance properties
 
         console.log(`Progress: ${trulyRelevantJobs.length} jobs are considered relevant after AI analysis.`);
         console.log(`Progress: ${irrelevantJobsForOutput.length} jobs were filtered out by AI analysis as irrelevant.`);
@@ -179,14 +192,14 @@ class JobHuntingAgent {
         }
 
         // Step 3: Scrape job listing details for filtered posts
-        const matchedJobs: JobPosting[] = [];
+        const matchedJobs: (JobPosting & AIRelevanceResponse)[] = [];
         console.log(`Progress: Scraping details for ${trulyRelevantJobs.length} relevant jobs...`);
 
         for (let i = 0; i < trulyRelevantJobs.length; i++) {
             const jobListItem = trulyRelevantJobs[i];
-            console.log(`Progress: Scraping details for "${jobListItem.job_title}" (${i + 1}/${trulyRelevantJobs.length})...`);
+            console.log(`Progress: Scraping details for "${jobListItem.job.job_title}" (${i + 1}/${trulyRelevantJobs.length})...`);
             try {
-                const detailScrapeResult = await this.firecrawl.scrapeUrl(jobListItem.job_link, {
+                const detailScrapeResult = await this.firecrawl.scrapeUrl(jobListItem.job.job_link, {
                     formats: ['json'],
                     jsonOptions: {
                         schema: JobDetailScrapeSchema,
@@ -196,13 +209,13 @@ class JobHuntingAgent {
                 }) as ScrapeResponse;
 
                 if (!detailScrapeResult.success || !detailScrapeResult.json) {
-                    console.warn(`Failed to scrape details for ${jobListItem.job_link}: ${detailScrapeResult.error || 'No data returned'}. Skipping this job.`);
+                    console.warn(`Failed to scrape details for ${jobListItem.job.job_link}: ${detailScrapeResult.error || 'No data returned'}. Skipping this job.`);
                     continue;
                 }
 
                 const parsedDetailData = JobDetailScrapeSchema.safeParse(detailScrapeResult.json);
                 if (!parsedDetailData.success) {
-                    console.warn(`Failed to parse job details for ${jobListItem.job_link}:`, parsedDetailData.error.errors);
+                    console.warn(`Failed to parse job details for ${jobListItem.job.job_link}:`, parsedDetailData.error.errors);
                     console.log('Received detail data:', JSON.stringify(detailScrapeResult.json, null, 2));
                     continue;
                 }
@@ -210,14 +223,16 @@ class JobHuntingAgent {
                 const jobDetails = parsedDetailData.data;
                 matchedJobs.push({
                     ...jobDetails,
-                    job_title: jobListItem.job_title,
-                    job_link: jobListItem.job_link,
-                    posted_date: jobListItem.posted_date_iso,
-                    job_posting_id: jobListItem.job_link, // Assign job_link as job_posting_id
+                    ...jobListItem.job,
+                    ...jobListItem.relevance,
+                    job_title: jobListItem.job.job_title,
+                    job_link: jobListItem.job.job_link,
+                    posted_date: jobListItem.job.posted_date_iso,
+                    job_posting_id: jobListItem.job.job_link, // Assign job_link as job_posting_id
                 });
 
             } catch (e: any) {
-                console.error(`Error scraping details for ${jobListItem.job_link}: ${e.message}. Skipping this job.`);
+                console.error(`Error scraping details for ${jobListItem.job.job_link}: ${e.message}. Skipping this job.`);
             }
             // Optional: Add a small delay to avoid overwhelming the server
             // await new Promise(resolve => setTimeout(resolve, 1000)); 
@@ -251,8 +266,8 @@ async function main() {
 
     // Example URLs - replace with actual URLs or load them from a config
     const jobListUrls = [
-        "https://www.bettercareer.si/jobs",
-        "https://www.optius.com/iskalci/prosta-delovna-mesta/?Keywords=&Fields%5B%5D=37&doSearch=&Time="
+        "https://weworkremotely.com/remote-full-time-jobs",
+        "https://weworkremotely.com/remote-react-jobs",
         // Add more URLs as needed
     ];
 
