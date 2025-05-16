@@ -5,10 +5,12 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 import FirecrawlApp, { ScrapeResponse } from '@mendable/firecrawl-js';
+import { PrismaClient } from '@prisma/client';
 
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { JobRelevanceAnalyzer, AIRelevanceResponse } from './jobRelevanceAnalyzer.js';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/binary';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -53,10 +55,48 @@ type JobListPageScrape = z.infer<typeof JobListPageScrapeSchema>;
 class JobHuntingAgent {
     firecrawl: FirecrawlApp;
     relevanceAnalyzer: JobRelevanceAnalyzer;
+    prisma: PrismaClient;
 
     constructor(firecrawlApiKey: string) {
         this.firecrawl = new FirecrawlApp({ apiKey: firecrawlApiKey });
         this.relevanceAnalyzer = new JobRelevanceAnalyzer();
+        this.prisma = new PrismaClient();
+    }
+
+    private async isJobDuplicate(url: string): Promise<boolean> {
+        const existingJob = await this.prisma.job.findUnique({
+            where: { url }
+        });
+        return existingJob !== null;
+    }
+
+    private async storeJob(job: JobPosting & AIRelevanceResponse): Promise<void> {
+        try {
+            await this.prisma.job.create({
+                data: {
+                    title: job.job_title,
+                    company: job.company || 'Unknown',
+                    description: job.role || '',
+                    url: job.job_link,
+                    source: new URL(job.job_link).hostname,
+                    status: 'NEW',
+                    relevance_reasoning: job.reasoning,
+                    region: job.region,
+                    job_type: job.job_type,
+                    experience: job.experience,
+                    salary: job.salary,
+                    posted_date: job.posted_date ? new Date(job.posted_date) : null
+                }
+            });
+            console.log(`Stored job: ${job.job_title}`);
+        } catch (error) {
+            if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+                console.log(`Duplicate job detected: ${job.job_title}`);
+            } else {
+                console.error(`Error storing job ${job.job_title}:`, error);
+                throw error;
+            }
+        }
     }
 
     async findJobs(jobListUrls: string[]): Promise<{ matchedJobs: (JobPosting & AIRelevanceResponse)[], irrelevantJobs: (JobListPageItem & AIRelevanceResponse)[] }> {
@@ -135,7 +175,6 @@ class JobHuntingAgent {
             console.log('Progress: No recent job listings found.');
             return { matchedJobs: [], irrelevantJobs: [] };
         }
-
 
         // Step 2.1: Filter by relevance using OpenAI
         // const jobPreferences = await getJobPreferences();
