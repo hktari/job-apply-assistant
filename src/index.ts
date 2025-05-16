@@ -2,27 +2,43 @@ import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import { z } from 'zod';
-import FirecrawlApp, { ExtractResponse, ScrapeResponse } from '@mendable/firecrawl-js';
+import FirecrawlApp, { ScrapeResponse } from '@mendable/firecrawl-js';
 
 // Load environment variables from .env file if it exists
 dotenv.config();
 
 // Define schemas using zod
-const JobPostingSchema = z.object({
+
+// Schema for items from the main job listing page
+const JobListPageItemSchema = z.object({
+    job_title: z.string().min(1, "Job title cannot be empty"),
+    job_link: z.string().url("Invalid URL format for job link"),
+    posted_date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").describe("The date the job was posted, in YYYY-MM-DD format."),
+});
+
+const JobListPageScrapeSchema = z.object({
+    job_postings: z.array(JobListPageItemSchema),
+});
+
+// Schema for details scraped from individual job posting pages
+const JobDetailScrapeSchema = z.object({
     region: z.string().nullable().optional(),
     role: z.string().nullable().optional(),
-    job_title: z.string().nullable().optional(),
     experience: z.string().nullable().optional(),
-    job_link: z.string().nullable().optional(),
     company: z.string().nullable().optional(),
     job_type: z.string().nullable().optional(),
     salary: z.string().nullable().optional(),
-    posted_date: z.string().nullable().optional(),
 });
 
-const ExtractSchema = z.object({
-    job_postings: z.array(JobPostingSchema),
+// Final combined schema for output
+const JobPostingSchema = JobDetailScrapeSchema.extend({
+    job_title: z.string().min(1),
+    job_link: z.string().url(),
+    posted_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD
 });
+
+type JobPosting = z.infer<typeof JobPostingSchema>;
+
 
 class JobHuntingAgent {
     firecrawl: FirecrawlApp;
@@ -30,81 +46,119 @@ class JobHuntingAgent {
         this.firecrawl = new FirecrawlApp({ apiKey: firecrawlApiKey });
     }
 
-    async findJobs() {
-        const urls = [
-            'https://slo-tech.com/delo',
-        ];
-        console.log('Progress: Starting job extraction...');
+    async findJobs(): Promise<JobPosting[]> {
+        const jobListUrl = 'https://slo-tech.com/delo';
+        console.log(`Progress: Starting job extraction from ${jobListUrl}...`);
 
-        const jobPostingOutdatedThreshold = new Date();
-        jobPostingOutdatedThreshold.setMonth(jobPostingOutdatedThreshold.getMonth() - 1);
-        const jobPostingOutdatedThresholdString = jobPostingOutdatedThreshold.toISOString().split('T')[0];
+        const dateThreshold = new Date();
+        dateThreshold.setMonth(dateThreshold.getMonth() - 1);
+        const today_iso = new Date().toISOString().split('T')[0];
 
+        let initialScrapedJobs: z.infer<typeof JobListPageItemSchema>[] = [];
+
+        // Step 1: Scrape job listing page
         try {
-            const extractJob = await this.firecrawl.asyncExtract(urls, {
-                prompt: `Extrat first 10 job postings`,
-                schema: ExtractSchema,
-            }) as ExtractResponse;
+            console.log('Progress: Scraping initial job list...');
+            const initialScrapeResult = await this.firecrawl.scrapeUrl(jobListUrl, {
+                formats: ['json'],
+                jsonOptions: {
+                    schema: JobListPageScrapeSchema,
+                    prompt: `Extract all job postings from this page. For each job, provide its title (job_title), the direct URL to the job details (job_link), and the posting date (posted_date_iso). Convert all posting dates to YYYY-MM-DD format. For example, if a job was posted 'today' (assuming today is ${today_iso}), 'yesterday', or '2 days ago', calculate and use the YYYY-MM-DD format. If a date like '15.03.2024' is given, convert it to '2024-03-15'. Ensure job_link is a full URL.`,
+                },
+                onlyMainContent: true,
+            }) as ScrapeResponse;
 
-            if (!extractJob.success) {
-                throw new Error('Failed to start extraction job. No job ID returned.');
+            if (!initialScrapeResult.success || !initialScrapeResult.json) {
+                throw new Error(`Failed to scrape job list: ${initialScrapeResult.error || 'No data returned'}`);
             }
 
-            // @ts-ignore
-            const jobId = extractJob.id;
-            console.log('Progress: Extraction job started. Polling for status...');
-
-            let waited = 0;
-            const maxWait = 60 * 5 * 1000; // 5 minutes timeout
-            const interval = 5000; // Poll every 5 seconds
-            let jobStatus;
-
-            while (true) {
-                jobStatus = await this.firecrawl.getExtractStatus(jobId);
-                console.log(`Progress: Job Status: ${jobStatus.status}, Progress: ${jobStatus.progress || 0}%`);
-
-                if (jobStatus.status === 'completed') break;
-                if (jobStatus.status === 'failed') {
-                    throw new Error(`Extraction job failed. Error: ${jobStatus.error || 'Unknown error'}`);
-                }
-
-                await new Promise((res) => setTimeout(res, interval));
-                waited += interval;
-                if (waited >= maxWait) {
-                    throw new Error('Timed out waiting for job extraction to complete.');
-                }
+            const parsedInitialData = JobListPageScrapeSchema.safeParse(initialScrapeResult.json);
+            if (!parsedInitialData.success) {
+                console.error('Failed to parse initial job list data:', parsedInitialData.error.errors);
+                console.log('Received data:', JSON.stringify(initialScrapeResult.json, null, 2));
+                throw new Error('Could not parse data from job list page.');
             }
+            initialScrapedJobs = parsedInitialData.data.job_postings;
+            console.log(`Progress: Found ${initialScrapedJobs.length} jobs in initial scrape.`);
 
-            if (jobStatus.status === 'completed' && jobStatus.data) {
-                const parsedResult = ExtractSchema.safeParse(jobStatus.data);
-
-                if (parsedResult.success) {
-                    const jobs = parsedResult.data.job_postings;
-                    if (!jobs || jobs.length === 0) {
-                        console.log('Progress: No job listings found matching your criteria or extracted data was empty.');
-                        return [];
-                    }
-                    // Write results to JSON file
-                    const outputPath = path.resolve(__dirname, 'job-results.json');
-                    fs.writeFileSync(outputPath, JSON.stringify(jobs, null, 2));
-                    console.log(`Progress: Job search completed! Results written to ${outputPath}`);
-                    return jobs;
-                } else {
-                    console.error('Failed to parse extracted data:', parsedResult.error.errors);
-                    console.log('Received data:', JSON.stringify(jobStatus.data, null, 2));
-                    return [];
-                }
-            } else if (jobStatus.status === 'completed' && !jobStatus.data) {
-                console.log('Progress: Extraction job completed but no data was returned.');
-                return [];
-            } else {
-                console.log(`Progress: Extraction job did not complete successfully. Status: ${jobStatus.status}`);
-                return [];
-            }
         } catch (e: any) {
-            console.error('Error in findJobs:', e.message);
+            console.error('Error in initial job list scrape:', e.message);
             return [];
         }
+
+        // Step 2: Filter by posted date
+        const recentJobs = initialScrapedJobs.filter(job => {
+            try {
+                const jobDate = new Date(job.posted_date_iso);
+                return jobDate >= dateThreshold;
+            } catch (dateError) {
+                console.warn(`Could not parse date ${job.posted_date_iso} for job "${job.job_title}". Skipping.`);
+                return false;
+            }
+        });
+        console.log(`Progress: ${recentJobs.length} jobs are recent enough to process further.`);
+
+        if (recentJobs.length === 0) {
+            console.log('Progress: No recent job listings found.');
+            return [];
+        }
+
+        
+
+
+        // Step 3: Scrape job listing details for filtered posts
+        const allJobDetails: JobPosting[] = [];
+        console.log('Progress: Scraping details for recent jobs...');
+
+        for (let i = 0; i < recentJobs.length; i++) {
+            const jobListItem = recentJobs[i];
+            console.log(`Progress: Scraping details for "${jobListItem.job_title}" (${i + 1}/${recentJobs.length})...`);
+            try {
+                const detailScrapeResult = await this.firecrawl.scrapeUrl(jobListItem.job_link, {
+                    formats: ['json'],
+                    jsonOptions: {
+                        schema: JobDetailScrapeSchema,
+                        prompt: "From the content of this job posting, extract the following details: region, role (specific role like 'Frontend Developer', not a general category), required experience level (experience), company name (company), job type (job_type, e.g., full-time, remote), and salary (salary) if mentioned.",
+                    },
+                    onlyMainContent: true
+                }) as ScrapeResponse;
+
+                if (!detailScrapeResult.success || !detailScrapeResult.json) {
+                    console.warn(`Failed to scrape details for ${jobListItem.job_link}: ${detailScrapeResult.error || 'No data returned'}. Skipping this job.`);
+                    continue;
+                }
+
+                const parsedDetailData = JobDetailScrapeSchema.safeParse(detailScrapeResult.json);
+                if (!parsedDetailData.success) {
+                    console.warn(`Failed to parse job details for ${jobListItem.job_link}:`, parsedDetailData.error.errors);
+                    console.log('Received detail data:', JSON.stringify(detailScrapeResult.json, null, 2));
+                    continue;
+                }
+
+                const jobDetails = parsedDetailData.data;
+                allJobDetails.push({
+                    ...jobDetails,
+                    job_title: jobListItem.job_title,
+                    job_link: jobListItem.job_link,
+                    posted_date: jobListItem.posted_date_iso,
+                });
+
+            } catch (e: any) {
+                console.error(`Error scraping details for ${jobListItem.job_link}: ${e.message}. Skipping this job.`);
+            }
+            // Optional: Add a small delay to avoid overwhelming the server
+            // await new Promise(resolve => setTimeout(resolve, 1000)); 
+        }
+
+        // Step 4: Write results to JSON file
+        if (allJobDetails.length > 0) {
+            const outputPath = path.resolve(__dirname, 'job-results.json');
+            fs.writeFileSync(outputPath, JSON.stringify(allJobDetails, null, 2));
+            console.log(`Progress: Job search completed! ${allJobDetails.length} job details written to ${outputPath}`);
+        } else {
+            console.log('Progress: No job details could be extracted for recent jobs.');
+        }
+        return allJobDetails;
     }
 }
 
