@@ -266,9 +266,15 @@ async function main() {
 
     // Example URLs - replace with actual URLs or load them from a config
     const jobListUrls = [
-        "https://weworkremotely.com/remote-full-time-jobs",
+        "https://slo-tech.com/delo",
+        "https://www.bettercareer.si/jobs",
+        "https://www.optius.com/iskalci/prosta-delovna-mesta/?Keywords=&amp;Fields%5B%5D=37&amp;doSearch=&amp;Time=",
+        "https://www.optius.com/iskalci/prosta-delovna-mesta/?Keywords=&amp;Fields%5B%5D=42&amp;doSearch=&amp;Time=",
         "https://weworkremotely.com/remote-react-jobs",
-        // Add more URLs as needed
+        "https://weworkremotely.com/remote-javascript-jobs",
+        "https://weworkremotely.com/remote-node-jobs",
+        "https://weworkremotely.com/remote-angular-jobs",
+        "https://weworkremotely.com/remote-full-time-jobs",
     ];
 
     if (jobListUrls.length === 0) {
