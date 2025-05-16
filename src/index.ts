@@ -1,18 +1,18 @@
+dotenv.config();
+
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 import FirecrawlApp, { ScrapeResponse } from '@mendable/firecrawl-js';
-// For __dirname
+
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { analyzeJobTitleRelevance } from './jobRelevanceAnalyzer.js';
+import { JobRelevanceAnalyzer, AIRelevanceResponse } from './jobRelevanceAnalyzer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load environment variables from .env file if it exists
-dotenv.config();
 
 // Define schemas using zod
 
@@ -50,8 +50,11 @@ type JobPosting = z.infer<typeof JobPostingSchema>;
 
 class JobHuntingAgent {
     firecrawl: FirecrawlApp;
+    relevanceAnalyzer: JobRelevanceAnalyzer;
+
     constructor(firecrawlApiKey: string) {
         this.firecrawl = new FirecrawlApp({ apiKey: firecrawlApiKey });
+        this.relevanceAnalyzer = new JobRelevanceAnalyzer();
     }
 
     async findJobs(): Promise<JobPosting[]> {
@@ -114,17 +117,17 @@ class JobHuntingAgent {
 
         // Step 2.1: Filter by relevance using OpenAI
         // const jobPreferences = await getJobPreferences();
-        let relevantJobsFromAnalysis: Array<{ job: z.infer<typeof JobListPageItemSchema>, relevance: { isRelevant: boolean, reasoning: string } }> = [];
+        let relevantJobsFromAnalysis: Array<{ job: z.infer<typeof JobListPageItemSchema>, relevance: AIRelevanceResponse }> = [];
         try {
             const relevanceResults = await Promise.allSettled(
-                recentJobs.map(job => analyzeJobTitleRelevance(job.job_title))
+                recentJobs.map(job => this.relevanceAnalyzer.analyzeJobTitleRelevance(job.job_title))
             );
             relevantJobsFromAnalysis = relevanceResults
                 .map((result, idx) => {
                     if (result.status === 'fulfilled') {
                         // Ensure result.value has the expected structure
                         if (typeof result.value === 'object' && result.value !== null && 'isRelevant' in result.value) {
-                            return { job: recentJobs[idx], relevance: result.value as { isRelevant: boolean, reasoning: string } };
+                            return { job: recentJobs[idx], relevance: result.value as AIRelevanceResponse };
                         } else {
                             console.warn(`Relevance check for "${recentJobs[idx].job_title}" returned unexpected data:`, result.value);
                             return null; // Or handle as not relevant
@@ -134,7 +137,7 @@ class JobHuntingAgent {
                         return null;
                     }
                 })
-                .filter((item): item is { job: z.infer<typeof JobListPageItemSchema>, relevance: { isRelevant: boolean, reasoning: string } } => item !== null);
+                .filter((item): item is { job: z.infer<typeof JobListPageItemSchema>, relevance: AIRelevanceResponse } => item !== null);
         } catch (err) {
             console.error('Error during job relevance analysis:', err);
             // relevantJobsFromAnalysis will remain empty or partially filled
