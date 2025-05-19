@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { JobRelevanceService } from './job-relevance.service';
 import { ConfigService } from '@nestjs/config';
 import { Job, JobStatus } from '@prisma/client';
+import { beforeEach } from 'node:test';
 
 describe('JobHuntingService', () => {
   let service: JobHuntingService;
