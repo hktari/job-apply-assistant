@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OpenAI } from 'openai';
 import * as fs from 'fs/promises';
@@ -23,7 +23,8 @@ export interface AIRelevanceResponse {
 export class JobRelevanceService {
   private openai: OpenAI;
   private profilePath: string;
-
+  private readonly logger = new Logger(JobRelevanceService.name);
+  
   constructor(private configService: ConfigService) {
     this.openai = new OpenAI({
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
@@ -42,7 +43,7 @@ export class JobRelevanceService {
         throw new Error('Job preferences not found in profile.json');
       }
     } catch (error) {
-      console.error('Error reading or parsing profile.json:', error);
+      this.logger.error('Error reading or parsing profile.json:', error);
       throw error;
     }
   }
@@ -88,8 +89,8 @@ Is this job title relevant based on these preferences? Provide your answer in th
         const parsedResponse: AIRelevanceResponse = JSON.parse(aiResponseContent);
         return parsedResponse;
       } catch (parseError) {
-        console.error('Error parsing AI response:', parseError);
-        console.error('Raw AI response:', aiResponseContent);
+        this.logger.error('Error parsing AI response:', parseError);
+        this.logger.error('Raw AI response:', aiResponseContent);
         // Fallback or attempt to infer relevance if parsing fails
         return {
           isRelevant: false,
@@ -97,7 +98,7 @@ Is this job title relevant based on these preferences? Provide your answer in th
         };
       }
     } catch (error) {
-      console.error('Error in analyzeJobTitleRelevance:', error);
+      this.logger.error('Error in analyzeJobTitleRelevance:', error);
       throw error;
     }
   }
