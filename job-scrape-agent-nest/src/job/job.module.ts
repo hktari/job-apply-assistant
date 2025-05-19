@@ -4,17 +4,20 @@ import { JobRelevanceService } from './services/job-relevance.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
+import { JobDiscoveryService } from './services/job-discovery.service';
+import { JobHuntingProcessor } from './services/job-hunting.processor';
 
 @Module({
   imports: [ConfigModule,  BullModule.registerQueue({
     name: 'job-hunting',
-    // TODO: move to config
-    connection: {
-      host: 'localhost',  // Your Redis host
-      port: 6379,         // Your Redis port
-    },
   }),],
-  providers: [JobHuntingService, JobRelevanceService, PrismaService],
+  providers: [
+    JobHuntingService, 
+    JobRelevanceService, 
+    PrismaService, 
+    JobDiscoveryService, 
+    JobHuntingProcessor,
+  ],
   exports: [JobHuntingService, JobRelevanceService],
 })
 export class JobModule {}
