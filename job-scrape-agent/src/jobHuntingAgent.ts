@@ -3,7 +3,7 @@ import { PrismaClient, JobStatus, Prisma } from "@prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import path from "path";
 import { z } from "zod";
-import { JobRelevanceAnalyzer, AIRelevanceResponse } from "./jobRelevanceAnalyzer.js";
+import { JobRelevanceAnalyzer, AIRelevanceResponse } from "./jobRelevanceAnalyzer";
 import fs from "fs";
 
 // Define schemas using zod

@@ -137,3 +137,6 @@ Is this job title relevant based on these preferences? Provide your answer in th
 // console.log("Running example usage...");
 // await example();
 // console.log("Job relevance analyzer module loaded successfully.");
+
+
+export default JobRelevanceAnalyzer;
