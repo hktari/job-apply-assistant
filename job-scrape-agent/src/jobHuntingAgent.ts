@@ -38,11 +38,11 @@ const JobPostingSchema = JobDetailScrapeSchema.extend({
     job_posting_id: z.string().min(1).describe("Unique identifier for the job posting, typically the job link itself."),
 });
 
-type JobPosting = z.infer<typeof JobPostingSchema>;
-type JobListPageItem = z.infer<typeof JobListPageItemSchema>;
-type JobListPageScrape = z.infer<typeof JobListPageScrapeSchema>;
-type AnalyzedJobPosting = JobPosting & AIRelevanceResponse;
-type AnalyzedJobListPageItem = JobListPageItem & AIRelevanceResponse;
+export type JobPosting = z.infer<typeof JobPostingSchema>;
+export type JobListPageItem = z.infer<typeof JobListPageItemSchema>;
+export type JobListPageScrape = z.infer<typeof JobListPageScrapeSchema>;
+export type AnalyzedJobPosting = JobPosting & AIRelevanceResponse;
+export type AnalyzedJobListPageItem = JobListPageItem & AIRelevanceResponse;
 
 class JobHuntingAgent {
     firecrawl: FirecrawlApp;
@@ -66,18 +66,18 @@ class JobHuntingAgent {
     private mapJobPosting(job: AnalyzedJobPosting): Prisma.JobCreateInput {
         return {
             title: job.job_title,
-            company: "company" in job && job.company ? job.company : "",
-            description: "role" in job && job.role ? job.role : "",
+            company: job.company,
+            description: job.role,
             url: job.job_link,
             source: new URL(job.job_link).hostname,
             status: JobStatus.PENDING,
             is_relevant: job.isRelevant,
             relevance_reasoning: job.reasoning || null,
-            region: 'region' in job ? job.region! : null,
-            job_type: 'job_type' in job ? job.job_type! : null,
-            experience: 'experience' in job ? job.experience! : null,
-            salary: 'salary' in job ? job.salary! : null,
-            posted_date: 'posted_date' in job ? new Date(job.posted_date) : 'posted_date_iso' in job ? new Date(job.posted_date_iso) : null,
+            region: job.region,
+            job_type: job.job_type,
+            experience: job.experience,
+            salary: job.salary,
+            posted_date: new Date(job.posted_date),
             notes: null
         };
     }
@@ -109,7 +109,7 @@ class JobHuntingAgent {
             console.log(`Stored job: ${job.job_title}`);
         } catch (error: unknown) {
             if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
-                console.log(`Duplicate job detected: ${job.job_title}`);
+                throw error;
             } else {
                 console.error(`Error storing job ${job.job_title}:`, error);
                 throw error;
