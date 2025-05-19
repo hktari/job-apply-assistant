@@ -1,5 +1,5 @@
 import FirecrawlApp, { ScrapeResponse } from "@mendable/firecrawl-js";
-import { PrismaClient, JobStatus } from "@prisma/client";
+import { PrismaClient, JobStatus, Prisma } from "@prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import path from "path";
 import { z } from "zod";
@@ -41,6 +41,8 @@ const JobPostingSchema = JobDetailScrapeSchema.extend({
 type JobPosting = z.infer<typeof JobPostingSchema>;
 type JobListPageItem = z.infer<typeof JobListPageItemSchema>;
 type JobListPageScrape = z.infer<typeof JobListPageScrapeSchema>;
+type AnalyzedJobPosting = JobPosting & AIRelevanceResponse;
+type AnalyzedJobListPageItem = JobListPageItem & AIRelevanceResponse;
 
 class JobHuntingAgent {
     firecrawl: FirecrawlApp;
@@ -60,26 +62,49 @@ class JobHuntingAgent {
         return existingJob !== null;
     }
 
-    // TODO: test database insertion
-    private async storeJob(job: (JobPosting | JobListPageItem) & AIRelevanceResponse): Promise<void> {
-        try {
-            const data = {
-                title: job.job_title,
-                company: "company" in job && job.company ? job.company : "",
-                description: "role" in job && job.role ? job.role : "",
-                url: job.job_link,
-                source: new URL(job.job_link).hostname,
-                status: JobStatus.PENDING,
-                is_relevant: job.isRelevant,
-                relevance_reasoning: job.reasoning || null,
-                region: 'region' in job ? job.region! : null,
-                job_type: 'job_type' in job ? job.job_type! : null,
-                experience: 'experience' in job ? job.experience! : null,
-                salary: 'salary' in job ? job.salary! : null,
-                posted_date: 'posted_date' in job ? new Date(job.posted_date) : 'posted_date_iso' in job ? new Date(job.posted_date_iso) : null,
-                notes: null
-            };
 
+    private mapJobPosting(job: AnalyzedJobPosting): Prisma.JobCreateInput {
+        return {
+            title: job.job_title,
+            company: "company" in job && job.company ? job.company : "",
+            description: "role" in job && job.role ? job.role : "",
+            url: job.job_link,
+            source: new URL(job.job_link).hostname,
+            status: JobStatus.PENDING,
+            is_relevant: job.isRelevant,
+            relevance_reasoning: job.reasoning || null,
+            region: 'region' in job ? job.region! : null,
+            job_type: 'job_type' in job ? job.job_type! : null,
+            experience: 'experience' in job ? job.experience! : null,
+            salary: 'salary' in job ? job.salary! : null,
+            posted_date: 'posted_date' in job ? new Date(job.posted_date) : 'posted_date_iso' in job ? new Date(job.posted_date_iso) : null,
+            notes: null
+        };
+    }
+
+    private mapJobListPageItem(job: AnalyzedJobListPageItem): Prisma.JobCreateInput {
+        return {
+            title: job.job_title,
+            company: "",
+            description: "",
+            url: job.job_link,
+            source: new URL(job.job_link).hostname,
+            status: JobStatus.PENDING,
+            is_relevant: job.isRelevant,
+            relevance_reasoning: job.reasoning || null,
+            region: null,
+            job_type: null,
+            experience: null,
+            salary: null,
+            posted_date: new Date(job.posted_date_iso),
+            notes: null
+        };
+    }
+
+    // TODO: test database insertion
+    private async storeJob(job: AnalyzedJobPosting | AnalyzedJobListPageItem): Promise<void> {
+        try {
+            const data = "company" in job ? this.mapJobPosting(job as AnalyzedJobPosting) : this.mapJobListPageItem(job as AnalyzedJobListPageItem);
             await this.prisma.job.create({ data });
             console.log(`Stored job: ${job.job_title}`);
         } catch (error: unknown) {
@@ -92,7 +117,7 @@ class JobHuntingAgent {
         }
     }
 
-    async storeJobsInDatabase(matchedJobs: (JobPosting & AIRelevanceResponse)[], irrelevantJobs: (JobListPageItem & AIRelevanceResponse)[]) {
+    async storeJobsInDatabase(matchedJobs: AnalyzedJobPosting[], irrelevantJobs: AnalyzedJobListPageItem[]) {
         console.log(`Progress: Updating database with ${matchedJobs.length} matched jobs and ${irrelevantJobs.length} irrelevant jobs...`);
         for (const job of matchedJobs) {
             await this.storeJob(job);
@@ -102,7 +127,7 @@ class JobHuntingAgent {
         }
     }
 
-    async findJobs(jobListUrls: string[]): Promise<{ matchedJobs: (JobPosting & AIRelevanceResponse)[], irrelevantJobs: (JobListPageItem & AIRelevanceResponse)[] }> {
+    async findJobs(jobListUrls: string[]): Promise<{ matchedJobs: AnalyzedJobPosting[], irrelevantJobs: AnalyzedJobListPageItem[] }> {
         console.log(`Progress: Starting job extraction from ${jobListUrls.length} URL(s)...`);
 
         const dateThreshold = new Date();
