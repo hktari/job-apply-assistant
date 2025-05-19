@@ -37,11 +37,11 @@ const JobPostingSchema = JobDetailScrapeSchema.extend({
   job_posting_id: z.string().min(1).describe("Unique identifier for the job posting, typically the job link itself."),
 });
 
-type JobPosting = z.infer<typeof JobPostingSchema>;
-type JobListPageItem = z.infer<typeof JobListPageItemSchema>;
-type JobListPageScrape = z.infer<typeof JobListPageScrapeSchema>;
-type AnalyzedJobPosting = JobPosting & { isRelevant: boolean; reasoning: string | null };
-type AnalyzedJobListPageItem = JobListPageItem & { isRelevant: boolean; reasoning: string | null };
+export type JobPosting = z.infer<typeof JobPostingSchema>;
+export type JobListPageItem = z.infer<typeof JobListPageItemSchema>;
+export type JobListPageScrape = z.infer<typeof JobListPageScrapeSchema>;
+export type AnalyzedJobPosting = JobPosting & { isRelevant: boolean; reasoning: string | null };
+export type AnalyzedJobListPageItem = JobListPageItem & { isRelevant: boolean; reasoning: string | null };
 
 @Injectable()
 export class JobHuntingService {
