@@ -119,7 +119,6 @@ export class JobHuntingService {
   }
 
   async storeJobsInDatabase(matchedJobs: AnalyzedJobPosting[], irrelevantJobs: AnalyzedJobListPageItem[]) {
-    this.logger.log(`Updating database with ${matchedJobs.length} matched jobs and ${irrelevantJobs.length} irrelevant jobs...`);
     for (const job of matchedJobs) {
       await this.storeJob(job);
     }
@@ -230,6 +229,7 @@ export class JobHuntingService {
     const irrelevantJobs = analyzedJobs.filter(job => !job.isRelevant);
 
     // Step 5: For relevant jobs, scrape detailed information
+    // TODO: optimization: scrape all relevant jobs in parallel
     const matchedJobs: AnalyzedJobPosting[] = [];
     for (const job of relevantJobs) {
       try {

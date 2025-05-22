@@ -101,7 +101,6 @@ class JobHuntingAgent {
         };
     }
 
-    // TODO: test database insertion
     private async storeJob(job: AnalyzedJobPosting | AnalyzedJobListPageItem): Promise<void> {
         try {
             const data = "company" in job ? this.mapJobPosting(job as AnalyzedJobPosting) : this.mapJobListPageItem(job as AnalyzedJobListPageItem);

@@ -19,6 +19,7 @@ export class JobHuntingProcessor extends WorkerHost {
     switch (job.name) {
       case 'discover-jobs': {
         let progress = 0;
+        // TODO: test this
 
         const jobListUrls = [
           "https://slo-tech.com/delo",
@@ -37,18 +38,20 @@ export class JobHuntingProcessor extends WorkerHost {
           return;
         }
 
-        this.logger.log(`Manually triggering job discovery for ${jobListUrls.length} URLs...`);
+        this.logger.log(`Running job discovery for ${jobListUrls.length} URLs...`);
         const result = await this.jobHuntingService.findJobs(jobListUrls);
-        this.logger.log("Manual job search completed.");
+        this.logger.log("Job discovery completed.");
         this.logger.log("Matched Jobs:", result.matchedJobs.length);
         this.logger.log("Irrelevant Jobs:", result.irrelevantJobs.length);
+
+        this.logger.log("Storing jobs in database...");
+        await this.jobHuntingService.storeJobsInDatabase(result.matchedJobs, result.irrelevantJobs);
+        this.logger.log("Jobs stored in database.");
 
         return {
           matchedJobs: result.matchedJobs,
           irrelevantJobs: result.irrelevantJobs,
         };
-        // The jobHuntingService.findJobs now handles storage, so this might be redundant
-        // await this.jobHuntingService.storeJobsInDatabase(result.matchedJobs, result.irrelevantJobs);
       }
       default: {
         this.logger.warn(`Unknown job name: ${job.name}`);
