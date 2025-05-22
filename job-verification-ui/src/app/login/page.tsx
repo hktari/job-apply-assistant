@@ -1,5 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import LoginForm from './loginForm';
+import { Suspense } from 'react';
 
 export default function LoginPage() {
   return (
@@ -10,7 +12,9 @@ export default function LoginPage() {
           <CardDescription>Sign in to verify job postings</CardDescription>
         </CardHeader>
         <CardContent>
-         
+          <Suspense>
+            <LoginForm />
+          </Suspense>
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-gray-500">
