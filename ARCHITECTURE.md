@@ -2,13 +2,18 @@
 
 ## Overview
 
-This document outlines the architecture for a Job Application Assistant System that automates the process of finding, filtering, and applying to job postings. The system is designed to be scalable, maintainable, and observable.
+This document outlines the architecture for a Job Application Assistant System that automates the process of finding, filtering, and applying to job postings. The system is designed to be scalable, maintainable, and observable. The system is built using NestJS, a progressive Node.js framework for building efficient and scalable server-side applications.
 
 ## System Components
 
-### 1. Job Scraper Service
-- Extends the existing job-scrape-agent
-- Scrapes job postings from various sources
+### 1. Job Scraper NestJS Service
+- Implemented as NestJS modules and services
+- Core components:
+  - `JobHuntingService`: Manages job scraping and processing pipeline
+  - `JobRelevanceService`: Analyzes job relevance using OpenAI GPT-4
+- Uses dependency injection for services (Prisma, JobRelevance, Config)
+- Implements NestJS Logger for improved logging
+- Scrapes job postings from various sources using Firecrawl
 - Performs initial filtering based on relevance
 - Stores raw and processed job postings in the database
 
@@ -25,35 +30,59 @@ This document outlines the architecture for a Job Application Assistant System t
 - Tracks communication
 
 ### 4. API Gateway
+- Implemented using NestJS controllers
 - Single entry point for all services
 - Handles authentication/authorization
 - Routes requests to appropriate services
 
 ### 5. Database
+- Prisma ORM for database interactions
 - Stores job postings, user profiles, application status
-- Recommended: PostgreSQL or MongoDB
+- PostgreSQL database with typed schema
 
-### 6. Message Queue
-- Manages job processing pipeline
-- Handles retries and backpressure
-- Recommended: RabbitMQ or AWS SQS
+### 6. Message Queue & Scheduling
+- NestJS Scheduler for periodic job scraping
+- Bull queue for job processing pipeline
+- Redis as the message broker
+- Features:
+  - Scheduled job execution
+  - Automatic retries with exponential backoff
+  - Dead letter queues for failed jobs
+  - Monitoring and observability
 
 ## Data Flow
 
 ### 1. Scraping Phase
-- Scraper runs on schedule
-- Raw jobs → Database
-- Filtered jobs → Verification Queue
+- NestJS Scheduler triggers `JobHuntingService.findJobs()` on a configurable interval
+- Error handling:
+  - Automatic retries for transient failures
+  - Circuit breaker pattern to prevent cascading failures
+  - Detailed logging for debugging
+- Processing pipeline:
+  1. Scrape job listings from configured sources using Firecrawl
+  2. Deduplicate jobs against database
+  3. Filter by posted date
+  4. Analyze relevance using `JobRelevanceService`
+  5. Scrape detailed information for relevant jobs
+  6. Store in database via Prisma ORM
+- Relevant jobs → Verification Queue (Bull queue)
 
 ### 2. Verification Phase
+- Bull queue consumer processes verification tasks
 - Human reviews jobs in React UI
-- Approved jobs → Application Queue
-- Rejected jobs → Feedback for ML model
+- Queue features:
+  - Priority-based processing
+  - Concurrency control
+  - Job timeout handling
+- Approved jobs → Application Queue (Bull queue)
+- Rejected jobs → Feedback for ML model (stored in database)
 
 ### 3. Application Phase
-- Application Agent picks up verified jobs
-- Submits applications
-- Updates status in database
+- Application Agent consumes from Application Queue
+- Implements retry mechanism with exponential backoff
+- Dead letter queue for failed applications
+- Updates job status in database via Prisma ORM
+- Metrics collection for monitoring application success rate
 
 ## Deployment Architecture
 
@@ -61,30 +90,41 @@ This document outlines the architecture for a Job Application Assistant System t
 version: '3.8'
 
 services:
-  # API Gateway
+  # NestJS API Gateway
   api-gateway:
-    image: nginx:alpine
+    build: ./job-scrape-agent-nest
     ports:
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - job-scraper
-      - verification-ui
-      - application-agent
-
-  # Job Scraper
-  job-scraper:
-    build: ./job-scraper
+      - "80:3000"
     environment:
       - NODE_ENV=production
-      - DB_URL=postgres://user:pass@db:5432/jobs
-      - RABBITMQ_URL=amqp://rabbitmq
+      - DATABASE_URL=postgresql://user:pass@db:5432/jobs
+      - REDIS_URL=redis://redis:6379
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
       - db
-      - rabbitmq
+      - redis
 
-  # Verification UI
+  # Job Scraper Worker (NestJS)
+  job-scraper-worker:
+    build: ./job-scrape-agent-nest
+    command: npm run start:worker
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://user:pass@db:5432/jobs
+      - REDIS_URL=redis://redis:6379
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - db
+      - redis
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+
+  # Verification UI (React)
   verification-ui:
     build: ./verification-ui
     environment:
@@ -92,35 +132,61 @@ services:
     ports:
       - "3000:3000"
 
-  # Application Agent
-  application-agent:
-    build: ./application-agent
+  # Application Agent Worker (NestJS)
+  application-agent-worker:
+    build: ./application-agent-nest
+    command: npm run start:worker
     environment:
       - NODE_ENV=production
-      - DB_URL=postgres://user:pass@db:5432/jobs
-      - RABBITMQ_URL=amqp://rabbitmq
+      - DATABASE_URL=postgresql://user:pass@db:5432/jobs
+      - REDIS_URL=redis://redis:6379
     depends_on:
       - db
-      - rabbitmq
+      - redis
+    deploy:
+      restart_policy:
+        condition: on-failure
 
   # Database
   db:
-    image: postgres:13-alpine
+    image: postgres:14-alpine
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=pass
       - POSTGRES_DB=jobs
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d jobs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Message Queue
-  rabbitmq:
-    image: rabbitmq:3-management
+  # Redis (for Bull queue)
+  redis:
+    image: redis:7-alpine
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "6379:6379"
     volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Bull Dashboard
+  bull-dashboard:
+    image: deadly0/bull-board
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - BULL_PREFIX=bull
+    ports:
+      - "3002:3000"
+    depends_on:
+      - redis
 
   # Monitoring
   prometheus:
@@ -139,66 +205,170 @@ services:
 
 volumes:
   postgres_data:
-  rabbitmq_data:
+  redis_data:
   grafana_data:
 ```
 
 ## Monitoring and Observability
 
 ### 1. Logging
+- NestJS Logger with structured JSON format
+- Winston transport for log aggregation
 - Centralized logging with ELK Stack or Loki
-- Structured JSON logs from all services
+- Log levels (debug, info, warn, error) for different environments
 
 ### 2. Metrics
-- Prometheus for metrics collection
+- NestJS Prometheus module for metrics collection
+- Bull queue metrics integration
 - Grafana for visualization
 - Key metrics:
   - Jobs scraped/verified/applied
-  - Success/failure rates
-  - Processing times
-  - Queue lengths
+  - Queue processing metrics (jobs/sec, latency)
+  - Success/failure rates with error categorization
+  - Processing times for each pipeline stage
+  - Queue lengths and backlog monitoring
+  - Worker utilization and health
 
-### 3. Alerting
+### 3. Bull Dashboard
+- Real-time monitoring of job queues
+- Job inspection and manual intervention
+- Retry management for failed jobs
+- Performance analytics
+
+### 4. Alerting
+- Prometheus AlertManager integration
 - Set up alerts for:
-  - Failed scrapes
-  - Long queue times
+  - Failed scrapes with error pattern detection
+  - Queue stalling or excessive backlog
+  - Worker failures or crashes
   - Application submission failures
-  - System resource usage
+  - System resource usage (CPU, memory, Redis capacity)
+  - Error rate thresholds
 
 ## Security Considerations
 
 ### 1. Authentication/Authorization
-- JWT-based auth for API endpoints
-- Role-based access control
-- Secure credential storage
+- NestJS Guards for route protection
+- JWT-based auth for API endpoints using @nestjs/jwt
+- Role-based access control with custom decorators
+- Secure credential storage using environment variables and Vault integration
 
 ### 2. Data Protection
-- Encrypt sensitive data at rest
+- Encrypt sensitive data at rest using Prisma field encryption
 - Use HTTPS for all communications
+- Input validation with class-validator and Zod schemas
 - Regular security audits
 
 ### 3. Rate Limiting
-- Protect scraping endpoints
+- NestJS ThrottlerModule for rate limiting
+- Protect scraping endpoints to avoid IP bans
 - Prevent abuse of application submission
+- Redis-based distributed rate limiting for multi-instance deployments
 
 ## Development Workflow
 
 ### 1. Local Development
-- Use docker-compose for local development
-- Include development databases
-- Hot-reload for UI development
+- NestJS CLI for service development
+- Use docker-compose for local development environment
+- Prisma migrations for database schema management
+- Hot-reload for both API and UI development
+- Bull Dashboard for local queue monitoring
 
 ### 2. CI/CD Pipeline
-- Automated testing
-- Container image building
+- Automated testing with Jest
+- E2E testing with Supertest
+- Container image building with multi-stage builds
 - Deployment to staging/production
+- Automated database migrations
+
+## Job Scheduling and Message Queue Implementation
+
+### 1. Scheduled Job Execution
+- NestJS Schedule module (@nestjs/schedule)
+- Cron expressions for configurable intervals
+- Example implementation:
+  ```typescript
+  @Injectable()
+  export class JobSchedulerService {
+    constructor(private jobHuntingService: JobHuntingService) {}
+
+    @Cron('0 */4 * * *') // Run every 4 hours
+    async runJobScraper() {
+      try {
+        await this.jobHuntingService.findJobs(['https://example.com/jobs']);
+      } catch (error) {
+        // Error handling
+      }
+    }
+  }
+  ```
+
+### 2. Bull Queue Implementation
+- Bull queue for job processing (@nestjs/bull)
+- Redis as the message broker
+- Queue processors with concurrency control
+- Example implementation:
+  ```typescript
+  // Queue registration
+  @Module({
+    imports: [
+      BullModule.forRoot({
+        redis: {
+          host: 'localhost',
+          port: 6379,
+        },
+      }),
+      BullModule.registerQueue({
+        name: 'job-verification',
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 1000,
+          },
+          removeOnComplete: true,
+        },
+      }),
+    ],
+    providers: [JobVerificationProcessor],
+  })
+  export class JobQueueModule {}
+
+  // Queue processor
+  @Processor('job-verification')
+  export class JobVerificationProcessor {
+    @Process()
+    async processJob(job: Job<JobData>) {
+      // Process the job
+      return result;
+    }
+
+    @OnQueueFailed()
+    onError(job: Job, error: Error) {
+      // Handle failed jobs
+    }
+  }
+  ```
+
+### 3. Error Handling and Retries
+- Automatic retries with exponential backoff
+- Circuit breaker pattern for external service calls
+- Dead letter queue for failed jobs after max attempts
+- Detailed error logging and monitoring
+
+### 4. Monitoring and Management
+- Bull Dashboard for queue visualization
+- Prometheus metrics for queue performance
+- Alerts for stalled or failed jobs
+- Manual intervention capabilities
 
 ## Next Steps
 
-1. Set up the database schema
-2. Implement the API Gateway
-3. Build the Verification UI
-4. Extend the Job Scraper
+1. Implement Bull queues for job processing
+2. Set up scheduled job execution with NestJS Schedule
+3. Implement error handling and retry mechanisms
+4. Build the Verification UI
+5. Develop the Application Agent service
 5. Develop the Application Agent
 6. Configure monitoring and alerting
 
