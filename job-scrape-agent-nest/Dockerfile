@@ -3,14 +3,16 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
-COPY prisma ./prisma/
 
 RUN npm ci
 
+COPY prisma ./prisma/
 COPY . .
 
 # Generate Prisma client
+RUN chmod -R +x ./node_modules/.bin
 RUN npx prisma generate
+
 RUN npm run build
 
 FROM node:20-alpine AS production
