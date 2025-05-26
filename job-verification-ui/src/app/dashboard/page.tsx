@@ -1,24 +1,13 @@
 
+'use client';
 import { useState } from "react";
-import { jobsApi, JobStatus } from "@/lib/jobs/api";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { format } from "date-fns";
 import { getQueryClient } from "@/lib/get-query-client";
 import DashboardContent from "./dashboardContent";
 import DashboardFooter from "./dashboardFooter";
@@ -29,6 +18,8 @@ export default function DashboardPage() {
   const [limit] = useState(10);
 
   const queryClient = getQueryClient();
+  
+console.log(process.env.NEXT_PUBLIC_USE_MOCK_API);
   void queryClient.prefetchQuery(jobOptions(page, limit));
 
   return (
