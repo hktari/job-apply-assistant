@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { jobsClient, JobStatus } from '@/lib/jobs/client';
@@ -24,7 +24,14 @@ const verificationSchema = z.object({
 
 type VerificationFormValues = z.infer<typeof verificationSchema>;
 
-export default function JobDetailPage({ params }: { params: { id: string } }) {
+type JobDetailPageParams = {
+  params: {
+    id: string;
+  };
+};
+
+export default function JobDetailPage({ params }: JobDetailPageParams) {
+
   const router = useRouter();
   const queryClient = getQueryClient();
   const jobId = parseInt(params.id, 10);

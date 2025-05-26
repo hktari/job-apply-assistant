@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { jobsApi, JobStatus } from '@/lib/jobs/api';
+import { jobsClient, JobStatus } from '@/lib/jobs/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,7 +15,7 @@ export default function ApprovedJobsPage() {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['jobs', JobStatus.APPROVED, page, limit],
-    queryFn: () => jobsApi.getJobs(JobStatus.APPROVED, page, limit),
+    queryFn: () => jobsClient.getJobs(JobStatus.APPROVED, page, limit),
   });
 
   const handlePreviousPage = () => {
