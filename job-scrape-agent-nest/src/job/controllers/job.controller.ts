@@ -1,10 +1,25 @@
-import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobStatus } from '@prisma/client';
+import { JobHuntingService } from '../services/job-hunting.service';
+import { CreateManualJobDto } from '../dto/create-manual-job.dto';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('jobs')
 @Controller('api/jobs')
 export class JobController {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly jobHuntingService: JobHuntingService,
+  ) {}
 
   @Get()
   async findAll(
@@ -61,5 +76,16 @@ export class JobController {
         updated_at: new Date(),
       },
     });
+  }
+
+  @Post('manual')
+  @ApiOperation({ summary: 'Add a job manually' })
+  @ApiResponse({
+    status: 201,
+    description: 'The job has been successfully created.',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data.' })
+  async createManualJob(@Body() createManualJobDto: CreateManualJobDto) {
+    return this.jobHuntingService.createManualJob(createManualJobDto);
   }
 }
