@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { jobsApi, JobStatus } from '@/lib/jobs/api';
+import { jobsClient, JobStatus } from '@/lib/jobs/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
+import { getQueryClient } from '@/lib/get-query-client';
 
 // Form schema for job verification
 const verificationSchema = z.object({
@@ -25,7 +26,7 @@ type VerificationFormValues = z.infer<typeof verificationSchema>;
 
 export default function JobDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   const jobId = parseInt(params.id, 10);
   const [activeTab, setActiveTab] = useState('details');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -34,7 +35,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
   // Fetch job details
   const { data: job, isLoading, isError, error } = useQuery({
     queryKey: ['job', jobId],
-    queryFn: () => jobsApi.getJob(jobId),
+    queryFn: () => jobsClient.getJob(jobId),
   });
 
   // Form for verification notes
@@ -48,7 +49,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
   // Mutation for verifying job
   const verifyMutation = useMutation({
     mutationFn: ({ status, notes }: { status: JobStatus; notes?: string }) => 
-      jobsApi.verifyJob(jobId, status, notes),
+      jobsClient.verifyJob(jobId, status, notes),
     onSuccess: () => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['jobs'] });

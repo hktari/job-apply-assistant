@@ -1,11 +1,11 @@
 import { Button } from '@/components/ui/button'
 import {Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { Link } from 'lucide-react'
 import React from 'react'
 import { isError } from 'util'
 import { jobOptions } from '../job'
 import { format } from 'date-fns'
+import Link from 'next/link'
 
 type Props = {
     page: number;
