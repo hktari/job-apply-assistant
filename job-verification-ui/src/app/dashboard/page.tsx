@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { jobsApi, JobStatus } from "@/lib/api";
+import { jobsApi, JobStatus } from "@/lib/jobs/api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
