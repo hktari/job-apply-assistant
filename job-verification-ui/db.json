@@ -1,13 +1,13 @@
 {
   "jobs": [
     {
-      "id": 1,
+      "id": "1",
       "title": "Software Engineer, Frontend",
       "company": "Tech Solutions Inc.",
       "description": "Join our innovative team to build next-generation web applications. Responsibilities include developing user-facing features, building reusable code and libraries, and ensuring the technical feasibility of UI/UX designs.",
       "url": "https://example.com/job/1",
       "source": "LinkedIn",
-      "status": "PENDING",
+      "status": "APPROVED",
       "is_relevant": true,
       "relevance_reasoning": "Matches skills and experience.",
       "region": "San Francisco, CA",
@@ -17,10 +17,10 @@
       "posted_date": "2025-05-20T00:00:00.000Z",
       "created_at": "2025-05-25T10:00:00.000Z",
       "updated_at": "2025-05-25T10:00:00.000Z",
-      "notes": "Interesting opportunity, good tech stack."
+      "notes": ""
     },
     {
-      "id": 2,
+      "id": "2",
       "title": "Product Manager",
       "company": "Innovatech Ltd.",
       "description": "We are looking for an experienced Product Manager to lead the development of our new SaaS platform. You will be responsible for product planning and execution throughout the Product Lifecycle.",
@@ -39,7 +39,7 @@
       "notes": ""
     },
     {
-      "id": 3,
+      "id": "3",
       "title": "Data Scientist",
       "company": "Analytics Corp.",
       "description": "Seeking a Data Scientist to analyze large datasets and develop predictive models. Must have strong statistical skills and experience with machine learning.",
@@ -58,7 +58,7 @@
       "notes": "Consider applying."
     },
     {
-      "id": 4,
+      "id": "4",
       "title": "UX Designer",
       "company": "Creative Designs LLC",
       "description": "Looking for a talented UX Designer to create intuitive and engaging user experiences for our mobile and web products.",
@@ -75,6 +75,17 @@
       "created_at": "2025-05-23T14:00:00.000Z",
       "updated_at": "2025-05-23T14:00:00.000Z",
       "notes": "Not relevant at this time."
+    },
+    {
+      "id": "cfa4",
+      "title": "test",
+      "companyName": "test",
+      "location": "test",
+      "jobDescription": "test",
+      "url": "http://localhost:3000/dashboard/jobs/add",
+      "postedDate": "2025-05-26",
+      "salary": "",
+      "notes": ""
     }
   ]
 }

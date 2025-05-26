@@ -1,5 +1,5 @@
 import axios from "axios";
-import { JobStatus, Job, PaginatedResponse } from "./api"; // Import types from original api.ts
+import { JobStatus, Job, PaginatedResponse, CreateManualJobRequest } from "./api"; // Import types from original api.ts
 
 // Define the API base URL for the mock server
 const API_MOCK_BASE_URL = "http://localhost:3001";
@@ -9,7 +9,7 @@ const mockApi = axios.create({
   baseURL: API_MOCK_BASE_URL,
   headers: {
     "Content-Type": "application/json",
-  },
+  },    
 });
 
 interface GetJobsMockParams {
@@ -67,11 +67,13 @@ export const jobsApiMock = {
     status: JobStatus,
     notes?: string,
   ): Promise<Job> => {
-    const payload: Partial<Job> = { status };
-    if (notes !== undefined) {
-      payload.notes = notes;
-    }
-    const response = await mockApi.patch(`/jobs/${id}`, payload);
+    const response = await mockApi.patch(`/jobs/${id}/verify`, { status, notes });
+    return response.data;
+  },
+
+  // Add a job manually
+  addManualJob: async (jobData: CreateManualJobRequest): Promise<Job> => {
+    const response = await mockApi.post("/jobs", jobData);
     return response.data;
   },
 };

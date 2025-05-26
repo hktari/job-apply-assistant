@@ -41,6 +41,17 @@ export interface Job {
   updated_at: string;
   notes: string | null;
 }
+export interface CreateManualJobRequest {
+  title: Job["title"];
+  company: Job["company"];
+  region: Job["region"];
+  description: Job["description"];
+  url: Job["url"];
+  job_type: Job["job_type"];
+  salary: Job["salary"];
+  posted_date: Job["posted_date"];
+  notes: Job["notes"];
+}
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -55,33 +66,41 @@ export interface PaginatedResponse<T> {
 // API functions for jobs
 export const jobsApi = {
   // Get jobs with pagination and filters
-  getJobs: async (
+  getJobs(
     status: JobStatus = JobStatus.PENDING,
     page: number = 1,
     limit: number = 10,
     sortBy: string = "created_at",
     sortOrder: "asc" | "desc" = "desc",
-  ): Promise<PaginatedResponse<Job>> => {
-    const response = await api.get("/jobs", {
-      params: { status, page, limit, sortBy, sortOrder },
-    });
-    return response.data;
+  ): Promise<PaginatedResponse<Job>> {
+    return api
+      .get("/jobs", {
+        params: { status, page, limit, sortBy, sortOrder },
+      })
+      .then((response) => response.data);
   },
 
   // Get a single job by ID
-  getJob: async (id: number): Promise<Job> => {
-    const response = await api.get(`/jobs/${id}`);
-    return response.data;
+  getJob(id: number): Promise<Job> {
+    return api.get(`/jobs/${id}`).then((response) => response.data);
   },
 
   // Update job verification status
-  verifyJob: async (
+  verifyJob(
     id: number,
     status: JobStatus,
     notes?: string,
-  ): Promise<Job> => {
-    const response = await api.patch(`/jobs/${id}/verify`, { status, notes });
-    return response.data;
+  ): Promise<Job> {
+    return api
+      .patch(`/jobs/${id}/verify`, { status, notes })
+      .then((response) => response.data);
+  },
+
+  // Add a job manually
+  addManualJob(jobData: CreateManualJobRequest): Promise<Job> {
+    return api
+      .post("/jobs/manual", jobData)
+      .then((response) => response.data);
   },
 };
 

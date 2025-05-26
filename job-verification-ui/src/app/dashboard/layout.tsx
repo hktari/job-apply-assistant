@@ -52,7 +52,17 @@ export default function DashboardLayout({
                     : "text-muted-foreground"
                 }`}
               >
-                Approved
+                Approved Jobs
+              </Link>
+              <Link
+                href="/dashboard/jobs/add"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  pathname === "/dashboard/jobs/add"
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Add Job
               </Link>
               <Link
                 href="/dashboard/rejected"

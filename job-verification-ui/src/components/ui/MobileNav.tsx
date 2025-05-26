@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"; // Assuming you have a utility for class names
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboard/approved", label: "Approved Jobs" },
+  { href: "/dashboard/jobs/add", label: "Add Job" },
   // { href: "/dashboard/rejected", label: "Rejected Jobs" }, // Example link
   // Add more navigation items as needed
 ];
