@@ -25,16 +25,16 @@ const verificationSchema = z.object({
 type VerificationFormValues = z.infer<typeof verificationSchema>;
 
 type JobDetailPageParams = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string; }>;
 };
 
 export default function JobDetailPage({ params }: JobDetailPageParams) {
 
+  const resolvedParams = React.use(params);
+
   const router = useRouter();
   const queryClient = getQueryClient();
-  const jobId = parseInt(params.id, 10);
+  const jobId = parseInt(resolvedParams.id, 10);
   const [activeTab, setActiveTab] = useState('details');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);

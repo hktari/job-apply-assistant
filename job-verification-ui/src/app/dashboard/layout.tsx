@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { MobileNav } from "@/components/ui/MobileNav";
 
 export default function DashboardLayout({
   children,
@@ -27,7 +28,8 @@ export default function DashboardLayout({
       {/* Header */}
       <header className="sticky top-0 z-10 border-b bg-white">
         <div className="container flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            <MobileNav />
             <Link href="/dashboard" className="text-xl font-bold">
               Job Verification Dashboard
             </Link>
@@ -80,7 +82,7 @@ export default function DashboardLayout({
       {/* Footer */}
       <footer className="border-t py-4 bg-white">
         <div className="container flex flex-col md:flex-row items-center justify-between px-4 text-sm text-muted-foreground">
-          <p>© 2025 Job Verification Dashboard</p>
+          <p>&copy; 2025 Job Verification Dashboard</p>
           <p>Built with Next.js and Tailwind CSS</p>
         </div>
       </footer>
