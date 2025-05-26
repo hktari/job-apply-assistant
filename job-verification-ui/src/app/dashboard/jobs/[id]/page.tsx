@@ -107,16 +107,17 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{job.title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{job.title}</h1>
           <p className="text-muted-foreground">{job.company || 'Unknown Company'}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
           <Button 
             variant="outline" 
             onClick={() => router.push('/dashboard')}
+            className="w-full sm:w-auto"
           >
             Back to List
           </Button>
@@ -124,6 +125,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
             variant="destructive" 
             onClick={() => handleAction('reject')}
             disabled={verifyMutation.isPending}
+            className="w-full sm:w-auto"
           >
             Reject
           </Button>
@@ -131,6 +133,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
             variant="default" 
             onClick={() => handleAction('approve')}
             disabled={verifyMutation.isPending}
+            className="w-full sm:w-auto"
           >
             Approve
           </Button>
@@ -138,7 +141,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
       </div>
 
       <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full md:w-[400px] grid-cols-2">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:w-[400px]">
           <TabsTrigger value="details">Job Details</TabsTrigger>
           <TabsTrigger value="relevance">Relevance Analysis</TabsTrigger>
         </TabsList>
@@ -151,7 +154,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Company</h3>
                   <p>{job.company || 'Not specified'}</p>
