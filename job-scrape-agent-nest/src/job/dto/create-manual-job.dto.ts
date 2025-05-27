@@ -16,7 +16,7 @@ export class CreateManualJobDto {
   })
   @IsNotEmpty()
   @IsString()
-  companyName: string;
+  company: string;
 
   @ApiProperty({
     description: 'The URL of the job posting',

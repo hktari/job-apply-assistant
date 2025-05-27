@@ -25,14 +25,9 @@ import { useMutation } from "@tanstack/react-query";
 // Define form validation schema
 const formSchema = z.object({
   title: z.string().min(1, "Job title is required"),
-  companyName: z.string().min(1, "Company name is required"),
-  location: z.string().min(1, "Location is required"),
-  jobDescription: z.string().min(1, "Job description is required"),
+  company: z.string().min(1, "Company name is required"),
   url: z.string().url("Must be a valid URL"),
-  postedDate: z.string().optional(),
-  salary: z.string().optional(),
   notes: z.string().optional(),
-  jobType: z.string().optional(),
 });
 
 export default function AddJobPage() {
@@ -44,14 +39,9 @@ export default function AddJobPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
-      companyName: "",
-      location: "",
-      jobDescription: "",
+      company: "",
       url: "",
-      postedDate: new Date().toISOString().split("T")[0], // Default to today's date
-      salary: "",
       notes: "",
-      jobType: "",
     },
   });
 
@@ -77,14 +67,9 @@ export default function AddJobPage() {
     setIsSubmitting(true);
     addJobMutation.mutate({
       title: values.title,
-      company: values.companyName,
-      region: values.location,
-      description: values.jobDescription,
+      company: values.company,
       url: values.url,
-      job_type: values.jobType,
-      posted_date: values.postedDate,
-      salary: values.salary,
-      notes: values.notes,
+      notes: values.notes || null,
     });
   };
 
@@ -116,7 +101,7 @@ export default function AddJobPage() {
 
               <FormField
                 control={form.control}
-                name="companyName"
+                name="company"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Company Name</FormLabel>
@@ -127,20 +112,7 @@ export default function AddJobPage() {
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Remote, New York, etc." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+  
 
               <FormField
                 control={form.control}
@@ -156,70 +128,6 @@ export default function AddJobPage() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="jobDescription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Job Description</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Enter the job description here..." 
-                        className="min-h-[150px]"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="postedDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Posted Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        When was this job posted?
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="salary"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Salary (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="$100,000 - $120,000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="jobType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Job Type (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Full-time, Part-time, Contract, etc." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
               <FormField
                 control={form.control}

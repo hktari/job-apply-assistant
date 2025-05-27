@@ -146,7 +146,7 @@ export class JobHuntingService {
 
   async createManualJob(createManualJobDto: CreateManualJobDto): Promise<Job> {
     try {
-      const { title, companyName, url, notes } = createManualJobDto;
+      const { title, company: companyName, url, notes } = createManualJobDto;
 
       // Check if job with this URL already exists
       const exists = await this.isJobDuplicate(url);
