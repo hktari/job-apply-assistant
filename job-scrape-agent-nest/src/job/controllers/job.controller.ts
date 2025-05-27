@@ -6,6 +6,8 @@ import {
   Patch,
   Post,
   Query,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobStatus } from '@prisma/client';
@@ -20,36 +22,43 @@ export class JobController {
     private readonly prismaService: PrismaService,
     private readonly jobHuntingService: JobHuntingService,
   ) {}
-
   @Get()
   async findAll(
-    @Query('status') status: JobStatus = JobStatus.PENDING,
-    @Query('page') page = '1',
-    @Query('limit') limit = '10',
-    @Query('sortBy') sortBy = 'created_at',
-    @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'desc',
+    @Query('status') status?: JobStatus,
+    @Query('isRelevant') isRelevant?: boolean,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit?: number,
+    @Query('sortBy', new DefaultValuePipe('created_at')) sortBy?: string,
+    @Query('sortOrder', new DefaultValuePipe('desc'))
+    sortOrder?: 'asc' | 'desc',
   ) {
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-    const skip = (pageNum - 1) * limitNum;
+    const skip = (page! - 1) * limit!;
+
+    const whereClause: any = {};
+    if (status) {
+      whereClause.status = status;
+    }
+    if (isRelevant !== undefined) {
+      whereClause.is_relevant = isRelevant;
+    }
 
     const [jobs, total] = await Promise.all([
       this.prismaService.job.findMany({
-        where: { status },
+        where: whereClause,
         skip,
-        take: limitNum,
-        orderBy: { [sortBy]: sortOrder },
+        take: limit!,
+        orderBy: { [sortBy!]: sortOrder },
       }),
-      this.prismaService.job.count({ where: { status } }),
+      this.prismaService.job.count({ where: whereClause }),
     ]);
 
     return {
       data: jobs,
       meta: {
         total,
-        page: pageNum,
-        limit: limitNum,
-        totalPages: Math.ceil(total / limitNum),
+        page: page!,
+        limit: limit!,
+        totalPages: Math.ceil(total / limit!),
       },
     };
   }

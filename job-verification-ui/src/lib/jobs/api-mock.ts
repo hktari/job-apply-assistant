@@ -14,11 +14,20 @@ const mockApi = axios.create({
 
 interface GetJobsMockParams {
   _page: number;
-  _limit: number;
+  _per_page: number;
   _sort: string;
   _order: "asc" | "desc";
   status?: JobStatus;
-  // Add other potential filter params here if needed
+  is_relevant?: boolean;
+}
+interface JsonServerResponse {
+    first: number;
+    prev: number | null;
+    next: number | null;
+    last: number;
+    pages: number;
+    items: number;
+    data: Job[];
 }
 
 // API functions for jobs (mock implementation)
@@ -30,29 +39,40 @@ export const jobsApiMock = {
     limit: number = 10,
     sortBy: string = "created_at",
     sortOrder: "asc" | "desc" = "desc",
+    isRelevant?: boolean,
   ): Promise<PaginatedResponse<Job>> => {
     const params: GetJobsMockParams = {
       _page: page,
-      _limit: limit,
+      _per_page: limit,
       _sort: sortBy,
       _order: sortOrder,
     };
     if (status) {
       params.status = status;
     }
+    
+    if(isRelevant){
+      params.is_relevant = isRelevant;
+    }
+    
     const response = await mockApi.get("/jobs", {
       params,
     });
-    const totalCount = parseInt(response.headers["x-total-count"] || "0", 10);
-    return {
-      data: response.data,
-      meta: {
-        total: totalCount,
+    if(response.data){
+        const totalCount = response.data.items
+        const totalPages = response.data.pages
+        return {
+            data: response.data.data,
+            meta: {
+                total: totalCount,
         page,
         limit,
-        totalPages: Math.ceil(totalCount / limit),
+        totalPages,
       },
     };
+    }else{
+      throw new Error("Failed to fetch jobs");
+    }
   },
 
   // Get a single job by ID

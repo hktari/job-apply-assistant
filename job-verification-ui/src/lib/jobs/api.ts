@@ -67,10 +67,11 @@ export const jobsApi = {
     limit: number = 10,
     sortBy: string = "created_at",
     sortOrder: "asc" | "desc" = "desc",
+    isRelevant?: boolean,
   ): Promise<PaginatedResponse<Job>> {
     return api
       .get("/jobs", {
-        params: { status, page, limit, sortBy, sortOrder },
+        params: { status, page, limit, sortBy, sortOrder, isRelevant },
       })
       .then((response) => response.data);
   },
