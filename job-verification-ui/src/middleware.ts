@@ -10,9 +10,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If the user is logged in and trying to access login page
-  if (session && request.nextUrl.pathname.startsWith("/login")) {
-    return NextResponse.redirect(new URL("/", request.url));
+  // If the user is logged in and trying to access login page or root path
+  if (session && (request.nextUrl.pathname.startsWith("/login") || request.nextUrl.pathname === "/")) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();
