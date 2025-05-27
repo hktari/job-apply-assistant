@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { Job, JobStatus, Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { CreateManualJobDto } from '../dto/create-manual-job.dto';
+import { JobSourceManual } from '../interface';
 
 // Schema for items from the main job listing page
 const JobListPageItemSchema = z.object({
@@ -39,23 +40,9 @@ const JobDetailScrapeSchema = z.object({
   salary: z.string().nullable().optional(),
 });
 
-// Final combined schema for output
-const JobPostingSchema = JobDetailScrapeSchema.extend({
-  job_title: z.string().min(1),
-  job_link: z.string().url(),
-  posted_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD
-  job_posting_id: z
-    .string()
-    .min(1)
-    .describe(
-      'Unique identifier for the job posting, typically the job link itself.',
-    ),
-});
-
-export type JobPosting = z.infer<typeof JobPostingSchema>;
 export type JobListPageItem = z.infer<typeof JobListPageItemSchema>;
 export type JobListPageScrape = z.infer<typeof JobListPageScrapeSchema>;
-export type AnalyzedJobPosting = JobPosting & {
+export type AnalyzedJobPosting = JobListPageItem & {
   isRelevant: boolean;
   reasoning: string | null;
 };
@@ -89,18 +76,14 @@ export class JobHuntingService {
   private mapJobPosting(job: AnalyzedJobPosting): Prisma.JobCreateInput {
     return {
       title: job.job_title,
-      company: job.company,
-      description: job.role,
+      company: '',
+      description: '',
       url: job.job_link,
       source: new URL(job.job_link).hostname,
       status: JobStatus.PENDING,
       is_relevant: job.isRelevant,
       relevance_reasoning: job.reasoning || null,
-      region: job.region,
-      job_type: job.job_type,
-      experience: job.experience,
-      salary: job.salary,
-      posted_date: new Date(job.posted_date),
+      posted_date: new Date(job.posted_date_iso),
       notes: null,
     };
   }
@@ -163,17 +146,8 @@ export class JobHuntingService {
 
   async createManualJob(createManualJobDto: CreateManualJobDto): Promise<Job> {
     try {
-      const {
-        title,
-        companyName,
-        location,
-        jobDescription,
-        url,
-        postedDate,
-        salary,
-        notes,
-      } = createManualJobDto;
-      
+      const { title, companyName, url, notes } = createManualJobDto;
+
       // Check if job with this URL already exists
       const exists = await this.isJobDuplicate(url);
       if (exists) {
@@ -182,29 +156,26 @@ export class JobHuntingService {
         );
         throw new Error(`Job with URL ${url} already exists`);
       }
-      
+
       // Create the job with APPROVED status since it's manually added
       const job = await this.prisma.job.create({
         data: {
           title,
           company: companyName,
-          region: location, // Using region field instead of location as per schema
-          description: jobDescription,
           url,
-          source: new URL(url).hostname,
+          source: JobSourceManual,
           status: JobStatus.APPROVED, // Automatically approve manually added jobs
           is_relevant: true, // Assume manually added jobs are relevant
-          experience: null,
-          salary,
-          posted_date: postedDate ? new Date(postedDate) : new Date(),
           notes,
         },
       });
-      
+
       this.logger.log(`Manually added job: ${title} (ID: ${job.id})`);
       return job;
     } catch (error: any) {
-      this.logger.error(`Error creating manual job: ${error?.message || 'Unknown error'}`);
+      this.logger.error(
+        `Error creating manual job: ${error?.message || 'Unknown error'}`,
+      );
       throw error;
     }
   }
@@ -297,9 +268,12 @@ export class JobHuntingService {
     // Step 1.1: deduplicate jobs
     const deduplicatedJobs = await Promise.all(
       initialScrapedJobs.filter(
+        // TODO: look into this
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (job) => !(await this.isJobDuplicate(job.job_link)),
       ),
     );
+
     this.logger.log(
       `Deduplicated ${initialScrapedJobs.length - deduplicatedJobs.length} jobs.`,
     );
@@ -313,6 +287,7 @@ export class JobHuntingService {
         this.logger.warn(
           `Could not parse date ${job.posted_date_iso} for job "${job.job_title}". Skipping.`,
         );
+        this.logger.debug(dateError);
         return false;
       }
     });
@@ -391,8 +366,7 @@ export class JobHuntingService {
           ...parsedDetailData.data,
           job_title: job.job_title,
           job_link: job.job_link,
-          posted_date: job.posted_date_iso,
-          job_posting_id: job.job_link,
+          posted_date_iso: job.posted_date_iso,
           isRelevant: job.isRelevant,
           reasoning: job.reasoning,
         };

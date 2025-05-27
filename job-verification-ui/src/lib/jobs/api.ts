@@ -44,12 +44,7 @@ export interface Job {
 export interface CreateManualJobRequest {
   title: Job["title"];
   company: Job["company"];
-  region: Job["region"];
-  description: Job["description"];
   url: Job["url"];
-  job_type: Job["job_type"];
-  salary: Job["salary"];
-  posted_date: Job["posted_date"];
   notes: Job["notes"];
 }
 
