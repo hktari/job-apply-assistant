@@ -6,17 +6,17 @@ import * as path from 'path';
 
 // Define an interface for the structure of jobPreferences in profile.json
 interface JobPreferences {
-    roles: string[];
-    experience: string;
-    level: string;
-    locations: string[];
-    salary: string;
+  roles: string[];
+  experience: string;
+  level: string;
+  locations: string[];
+  salary: string;
 }
 
 // Define an interface for the expected AI response
 export interface AIRelevanceResponse {
-    isRelevant: boolean;
-    reasoning: string;
+  isRelevant: boolean;
+  reasoning: string;
 }
 
 @Injectable()
@@ -24,7 +24,7 @@ export class JobRelevanceService {
   private openai: OpenAI;
   private profilePath: string;
   private readonly logger = new Logger(JobRelevanceService.name);
-  
+
   constructor(private configService: ConfigService) {
     this.openai = new OpenAI({
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
@@ -38,7 +38,7 @@ export class JobRelevanceService {
       const data = await fs.readFile(this.profilePath, 'utf-8');
       const profile = JSON.parse(data);
       if (profile && profile.jobPreferences) {
-        return profile.jobPreferences;
+        return profile.jobPreferences as JobPreferences;
       } else {
         throw new Error('Job preferences not found in profile.json');
       }
@@ -71,12 +71,12 @@ Is this job title relevant based on these preferences? Provide your answer in th
 `;
 
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: 'gpt-4o',
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
-        response_format: { type: "json_object" },
+        response_format: { type: 'json_object' },
       });
 
       const aiResponseContent = completion.choices[0]?.message?.content;
@@ -86,7 +86,8 @@ Is this job title relevant based on these preferences? Provide your answer in th
       }
 
       try {
-        const parsedResponse: AIRelevanceResponse = JSON.parse(aiResponseContent);
+        const parsedResponse: AIRelevanceResponse =
+          JSON.parse(aiResponseContent);
         return parsedResponse;
       } catch (parseError) {
         this.logger.error('Error parsing AI response:', parseError);
@@ -94,7 +95,7 @@ Is this job title relevant based on these preferences? Provide your answer in th
         // Fallback or attempt to infer relevance if parsing fails
         return {
           isRelevant: false,
-          reasoning: 'Failed to parse AI response. Raw: ' + aiResponseContent
+          reasoning: 'Failed to parse AI response. Raw: ' + aiResponseContent,
         };
       }
     } catch (error) {

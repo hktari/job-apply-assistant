@@ -9,15 +9,18 @@ import { JobHuntingProcessor } from './services/job-hunting.processor';
 import { JobController } from './controllers/job.controller';
 
 @Module({
-  imports: [ConfigModule,  BullModule.registerQueue({
-    name: 'job-hunting',
-  }),],
+  imports: [
+    ConfigModule,
+    BullModule.registerQueue({
+      name: 'job-hunting',
+    }),
+  ],
   controllers: [JobController],
   providers: [
-    JobHuntingService, 
-    JobRelevanceService, 
-    PrismaService, 
-    JobDiscoveryService, 
+    JobHuntingService,
+    JobRelevanceService,
+    PrismaService,
+    JobDiscoveryService,
     JobHuntingProcessor,
   ],
   exports: [JobHuntingService, JobRelevanceService],
