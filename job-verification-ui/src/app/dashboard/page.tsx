@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { jobsApi } from "@/lib/jobs/api";
 import { getQueryClient } from "@/lib/get-query-client";
 import DashboardContent from "./dashboardContent";
 import DashboardFooter from "./dashboardFooter";
@@ -41,6 +42,22 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Pending Jobs</h1>
+        <button
+          onClick={() => {
+            jobsApi.triggerJobDiscovery()
+              .then(() => {
+                // Optionally show a success toast
+                alert('Job discovery started');
+              })
+              .catch((error: Error) => {
+                console.error('Failed to trigger job discovery:', error);
+                alert('Failed to trigger job discovery');
+              });
+          }}
+          className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          Discover Jobs
+        </button>
       </div>
 
       <Card>

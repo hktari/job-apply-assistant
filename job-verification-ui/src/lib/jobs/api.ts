@@ -98,6 +98,13 @@ export const jobsApi = {
       .post("/jobs/manual", jobData)
       .then((response) => response.data);
   },
+
+  // Trigger job discovery process
+  triggerJobDiscovery(): Promise<{ jobId: string; status: string }> {
+    return api
+      .post("/jobs/discover")
+      .then((response) => response.data);
+  },
 };
 
 export default api;
