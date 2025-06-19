@@ -6,6 +6,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: logger,
   });
-  await app.listen(process.env.PORT ?? 3100);
+  await app.listen(3001);
 }
 bootstrap();
