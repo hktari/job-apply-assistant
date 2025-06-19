@@ -1,4 +1,11 @@
-import { Controller, Get, Put, Body, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Body,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { ProfileService } from '../services/profile.service';
 
 @Controller('profile')

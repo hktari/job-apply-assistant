@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OpenAI } from 'openai';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { ProfileService } from '../../profile/services/profile.service';
 
 // Define an interface for the structure of jobPreferences in profile.json
 interface JobPreferences {
@@ -22,28 +21,28 @@ export interface AIRelevanceResponse {
 @Injectable()
 export class JobRelevanceService {
   private openai: OpenAI;
-  private profilePath: string;
   private readonly logger = new Logger(JobRelevanceService.name);
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private profileService: ProfileService,
+  ) {
     this.openai = new OpenAI({
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
     });
-    // Assuming profile.json is in the root of the project
-    this.profilePath = path.join(process.cwd(), 'profile.json');
   }
 
   private async getJobPreferences(): Promise<JobPreferences> {
     try {
-      const data = await fs.readFile(this.profilePath, 'utf-8');
-      const profile = JSON.parse(data);
-      if (profile && profile.jobPreferences) {
-        return profile.jobPreferences as JobPreferences;
+      const profile = await this.profileService.getProfile();
+      const data = JSON.parse(profile);
+      if (data && data.jobPreferences) {
+        return data.jobPreferences as JobPreferences;
       } else {
-        throw new Error('Job preferences not found in profile.json');
+        throw new Error('Job preferences not found in profile');
       }
     } catch (error) {
-      this.logger.error('Error reading or parsing profile.json:', error);
+      this.logger.error('Error getting job preferences:', error);
       throw error;
     }
   }

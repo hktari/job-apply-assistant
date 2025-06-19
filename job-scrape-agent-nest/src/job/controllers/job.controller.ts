@@ -19,7 +19,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
 @ApiTags('jobs')
-@Controller('api/jobs')
+@Controller('jobs')
 export class JobController {
   constructor(
     private readonly prismaService: PrismaService,

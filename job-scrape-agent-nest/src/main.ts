@@ -6,6 +6,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: logger,
   });
+  app.setGlobalPrefix('api');
   if (process.env.NODE_ENV === 'development') {
     const corsOptions = {
       origin: '*',
