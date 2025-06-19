@@ -12,7 +12,8 @@ export class ProfileService {
   async getProfile(): Promise<string> {
     const profile = await this.prisma.profile.findFirst();
     if (!profile) {
-      throw new NotFoundException('Profile not found');
+      await this.createOrUpdateProfile({ data: {} });
+      return '{}';
     }
     return profile.data as string;
   }

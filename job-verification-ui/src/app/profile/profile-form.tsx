@@ -1,22 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateProfile, type ProfileData } from '@/lib/api/profile';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { getQueryClient } from '@/lib/get-query-client';
+import Editor, { type OnMount } from '@monaco-editor/react';
 
 interface ProfileFormProps {
   initialData: ProfileData;
 }
 
-export function ProfileForm({ initialData }: ProfileFormProps) {
-  const [jsonData, setJsonData] = useState(
-    JSON.stringify(initialData, null, 2)
-  );
+export default function ProfileForm({ initialData }: ProfileFormProps) {
+  const [jsonData, setJsonData] = useState(JSON.stringify(initialData, null, 2));
   const queryClient = getQueryClient();
+  const editorRef = useRef<Parameters<OnMount>[0]>(null);
 
   const { mutate: updateProfileMutation, isPending } = useMutation({
     mutationFn: updateProfile,
@@ -30,30 +29,42 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const parsedData = JSON.parse(jsonData);
-      updateProfileMutation({ data: parsedData });
+      if (!parsedData.jobPreferences) {
+        toast.error('Profile must contain jobPreferences object');
+        return;
+      }
+      await updateProfileMutation({ data: parsedData });
     } catch (error) {
       toast.error('Invalid JSON format');
+      if (editorRef.current) {
+        editorRef.current.focus();
+      }
     }
   };
 
-  return (
+  return (  
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Textarea
+      <div className="space-y-2 h-[500px] border rounded-md overflow-hidden">
+        <Editor
+          height="100%"
+          defaultLanguage="json"
           value={jsonData}
-          onChange={(e) => setJsonData(e.target.value)}
-          className="font-mono min-h-[400px]"
-          placeholder="Enter your profile data in JSON format"
+          onChange={(value) => value && setJsonData(value)}
+          theme="vs-dark"
+          options={{
+            minimap: { enabled: false },
+            fontSize: 14,
+            formatOnPaste: true,
+            formatOnType: true,
+          }}
+          onMount={(editor) => {
+            editorRef.current = editor;
+          }}
         />
-        {jsonData !== JSON.stringify(initialData, null, 2) && (
-          <p className="text-sm text-muted-foreground">
-            * You have unsaved changes
-          </p>
-        )}
       </div>
       <div className="flex justify-end">
         <Button type="submit" disabled={isPending}>

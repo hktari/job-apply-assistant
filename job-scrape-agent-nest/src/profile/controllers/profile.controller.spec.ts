@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProfileController } from './controllers/profile.controller';
-import { ProfileService } from './services/profile.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { ProfileController } from './profile.controller';
+import { ProfileService } from '../services/profile.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { HttpException } from '@nestjs/common';
 
 describe('ProfileController', () => {

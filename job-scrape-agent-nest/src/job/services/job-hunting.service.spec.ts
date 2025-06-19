@@ -16,7 +16,21 @@ describe('JobHuntingService', () => {
   let configService: ConfigService;
   let jobRelevanceService: JobRelevanceService;
 
+  beforeAll(async () => {
+    // Connect to test database
+    prismaService = new PrismaService();
+    await prismaService.$connect();
+  });
+
+  afterAll(async () => {
+    // Cleanup and disconnect
+    await prismaService.$disconnect();
+  });
+
   beforeEach(async () => {
+    // Clean the database before each test
+    await prismaService.job.deleteMany();
+
     const mockConfigService = {
       get: jest.fn().mockImplementation((key: string) => {
         if (key === 'FIRECRAWL_API_KEY') return 'dummy-api-key';
@@ -35,7 +49,10 @@ describe('JobHuntingService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         JobHuntingService,
-        PrismaService,
+        {
+          provide: PrismaService,
+          useValue: prismaService,
+        },
         {
           provide: ConfigService,
           useValue: mockConfigService,
@@ -48,7 +65,6 @@ describe('JobHuntingService', () => {
     }).compile();
 
     service = module.get<JobHuntingService>(JobHuntingService);
-    prismaService = module.get<PrismaService>(PrismaService);
     configService = module.get<ConfigService>(ConfigService);
     jobRelevanceService = module.get<JobRelevanceService>(JobRelevanceService);
   });
@@ -113,7 +129,7 @@ describe('JobHuntingService', () => {
     });
   });
 
-  describe('storeJob with real Prisma', () => {
+  describe('storeJob', () => {
     const testJobPosting: AnalyzedJobPosting = {
       job_title: 'Test Software Engineer',
       job_link: 'https://example.com/test/job/posting/123',

@@ -5,7 +5,7 @@ import { getProfile } from '@/lib/api/profile';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { ProfileForm } from './profile-form';
+import ProfileForm from './profile-form';
 
 export default function ProfilePage() {
   const { data: profile, isLoading, error } = useQuery({
@@ -15,22 +15,34 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="container mx-auto py-8">
+        <Card>
+          <CardContent className="py-8">
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4">
-        <p className="text-destructive">Failed to load profile</p>
-        <Button
-          variant="outline"
-          onClick={() => window.location.reload()}
-        >
-          Retry
-        </Button>
+      <div className="container mx-auto py-8">
+        <Card>
+          <CardContent className="py-8">
+            <div className="flex flex-col items-center justify-center gap-4">
+              <p className="text-destructive">Failed to load profile</p>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -42,7 +54,7 @@ export default function ProfilePage() {
           <CardTitle>Profile Settings</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProfileForm initialData={profile} />
+          <ProfileForm initialData={profile!} />
         </CardContent>
       </Card>
     </div>
