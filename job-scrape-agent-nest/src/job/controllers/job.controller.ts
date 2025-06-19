@@ -8,6 +8,7 @@ import {
   Query,
   DefaultValuePipe,
   ParseIntPipe,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobStatus } from '@prisma/client';
@@ -34,7 +35,12 @@ export class JobController {
   @Get()
   async findAll(
     @Query('status') status?: JobStatus,
-    @Query('isRelevant') isRelevant?: boolean,
+    @Query(
+      'isRelevant',
+      new DefaultValuePipe(undefined),
+      new ParseBoolPipe({ optional: true }),
+    )
+    isRelevant?: boolean,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit?: number,
     @Query('sortBy', new DefaultValuePipe('created_at')) sortBy?: string,

@@ -6,6 +6,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: logger,
   });
+  if (process.env.NODE_ENV === 'development') {
+    const corsOptions = {
+      origin: '*',
+      credentials: true,
+    };
+    app.enableCors(corsOptions);
+  }
   await app.listen(3001);
 }
 bootstrap();
