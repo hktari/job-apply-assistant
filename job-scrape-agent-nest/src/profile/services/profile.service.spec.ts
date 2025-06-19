@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProfileService } from './profile.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { NotFoundException } from '@nestjs/common';
+import { UpdateProfileDto } from '../dtos/profile.dto';
 
 describe('ProfileService', () => {
   let service: ProfileService;
   let prismaService: PrismaService;
 
-  const mockProfileData = {
+  const testProfileData = {
     data: {
       jobPreferences: {
         roles: ['Software Engineer'],
@@ -21,33 +21,14 @@ describe('ProfileService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ProfileService,
-        {
-          provide: PrismaService,
-          useValue: {
-            profile: {
-              findFirst: jest.fn(),
-              update: jest.fn(),
-              create: jest.fn(),
-            },
-            $transaction: jest.fn((callback) =>
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-              callback({
-                profile: {
-                  findFirst: jest.fn(),
-                  update: jest.fn(),
-                  create: jest.fn(),
-                },
-              }),
-            ),
-          },
-        },
-      ],
+      providers: [ProfileService, PrismaService],
     }).compile();
 
     service = module.get<ProfileService>(ProfileService);
     prismaService = module.get<PrismaService>(PrismaService);
+
+    // Clean up the database before each test
+    await prismaService.profile.deleteMany();
   });
 
   it('should be defined', () => {
@@ -56,85 +37,66 @@ describe('ProfileService', () => {
 
   describe('getProfile', () => {
     it('should return profile data when profile exists', async () => {
-      const mockProfile = {
-        id: 1,
-        data: JSON.stringify(mockProfileData.data),
-        created_at: new Date(),
-        updated_at: new Date(),
-      };
-      jest
-        .spyOn(prismaService.profile, 'findFirst')
-        .mockResolvedValue(mockProfile);
+      // Create a test profile
+      const createdProfile = await prismaService.profile.create({
+        data: {
+          data: testProfileData.data,
+        },
+      });
 
       const result = await service.getProfile();
-      expect(result).toBe(mockProfile.data);
+      expect(result.data).toMatchObject(
+        createdProfile.data as Record<string, any>,
+      );
     });
 
-    it('should throw NotFoundException when profile does not exist', async () => {
-      jest.spyOn(prismaService.profile, 'findFirst').mockResolvedValue(null);
-      await expect(service.getProfile()).rejects.toThrow(NotFoundException);
+    it('should create and return empty profile when none exists', async () => {
+      const result = await service.getProfile();
+      expect(result.data).toMatchObject({});
+
+      // Verify a new profile was created
+      const profile = await prismaService.profile.findFirst();
+      expect(profile).toBeDefined();
+      expect(profile?.data).toMatchObject({});
     });
   });
 
   describe('createOrUpdateProfile', () => {
     it('should update existing profile', async () => {
-      const existingProfile = {
-        id: 1,
-        data: '{}',
-        created_at: new Date(),
-        updated_at: new Date(),
-      };
-      const updatedProfile = {
-        ...existingProfile,
-        data: JSON.stringify(mockProfileData.data),
-      };
-
-      const transactionMock = jest.spyOn(prismaService, '$transaction');
-      transactionMock.mockImplementation(async (callback) => {
-        const tx = {
-          profile: {
-            findFirst: jest.fn().mockResolvedValue(existingProfile),
-            update: jest.fn().mockResolvedValue(updatedProfile),
-            create: jest.fn(),
-          },
-        };
-        return callback(tx);
+      // Create initial profile
+      const initialProfile = await prismaService.profile.create({
+        data: { data: {} },
       });
 
-      const result = await service.createOrUpdateProfile(mockProfileData);
-      expect(result).toEqual(updatedProfile);
+      // Update the profile
+      const result = await service.createOrUpdateProfile(testProfileData);
+
+      // Verify the update
+      expect(result.id).toBe(initialProfile.id);
+      expect(result.data).toMatchObject(testProfileData.data);
+
+      // Verify in database
+      const updatedProfile = await prismaService.profile.findFirst();
+      expect(updatedProfile?.id).toBe(initialProfile.id);
+      expect(updatedProfile?.data).toMatchObject(testProfileData.data);
     });
 
-    it('should create new profile if none exists', async () => {
-      const newProfile = {
-        id: 1,
-        data: JSON.stringify(mockProfileData.data),
-        created_at: new Date(),
-        updated_at: new Date(),
-      };
+    it('should create new profile when none exists', async () => {
+      const result = await service.createOrUpdateProfile(testProfileData);
 
-      const transactionMock = jest.spyOn(prismaService, '$transaction');
-      transactionMock.mockImplementation(async (callback) => {
-        const tx = {
-          profile: {
-            findFirst: jest.fn().mockResolvedValue(null),
-            update: jest.fn(),
-            create: jest.fn().mockResolvedValue(newProfile),
-          },
-        };
-        return callback(tx);
-      });
+      // Verify the creation
+      expect(result.data).toMatchObject(testProfileData.data);
 
-      const result = await service.createOrUpdateProfile(mockProfileData);
-      expect(result).toEqual(newProfile);
+      // Verify in database
+      const profile = await prismaService.profile.findFirst();
+      expect(profile?.id).toBe(result.id);
+      expect(profile?.data).toMatchObject(testProfileData.data);
     });
 
-    it('should handle database errors', async () => {
-      const transactionMock = jest.spyOn(prismaService, '$transaction');
-      transactionMock.mockRejectedValue(new Error('Database error'));
-
+    it('should handle errors gracefully', async () => {
+      // Force a database error by passing invalid data
       await expect(
-        service.createOrUpdateProfile(mockProfileData),
+        service.createOrUpdateProfile({ data: {} } as UpdateProfileDto),
       ).rejects.toThrow('Failed to create or update profile');
     });
   });

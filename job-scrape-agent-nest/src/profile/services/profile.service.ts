@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Profile } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateProfileDto } from '../dtos/profile.dto';
+import { JsonValue } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class ProfileService {
@@ -9,13 +10,12 @@ export class ProfileService {
 
   constructor(private prisma: PrismaService) {}
 
-  async getProfile(): Promise<string> {
+  async getProfile(): Promise<Profile> {
     const profile = await this.prisma.profile.findFirst();
     if (!profile) {
-      await this.createOrUpdateProfile({ data: {} });
-      return '{}';
+      return await this.createOrUpdateProfile({ data: {} });
     }
-    return profile.data as string;
+    return profile;
   }
 
   async createOrUpdateProfile(profileData: UpdateProfileDto): Promise<Profile> {
