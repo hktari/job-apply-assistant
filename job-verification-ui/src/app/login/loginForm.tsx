@@ -45,17 +45,25 @@ const LoginForm = () => {
     setError(null);
 
     try {
-      // For demo purposes, we'll use a simple hardcoded check
-      // In a real app, you would call an API endpoint
-      if (values.username === "admin" && values.password === "password") {
-        // Set a cookie to simulate authentication
-        document.cookie = `auth_session=authenticated; path=/; max-age=${60 * 60 * 24 * 7}`; // 1 week
-        router.push(from);
-      } else {
-        setError("Invalid username or password");
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to login');
       }
+
+      // Redirect to the intended destination
+      router.push(from);
+      router.refresh(); // Refresh the page to update auth state
     } catch (error) {
-      setError("An error occurred during login");
+      setError(error instanceof Error ? error.message : 'An error occurred during login');
       console.error(error);
     } finally {
       setIsLoading(false);

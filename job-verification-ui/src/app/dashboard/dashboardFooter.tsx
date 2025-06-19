@@ -14,7 +14,7 @@ const DashboardFooter = ({
     limit,
     setPage,
 }: Props) => {
-    const {data, error} = useSuspenseQuery(jobOptions(page, limit))
+    const {data, error} = useSuspenseQuery(jobOptions(page, limit, 'all'))
     const isLoading = !data && !error
     const isError = error instanceof Error
     const handlePreviousPage = () => {
