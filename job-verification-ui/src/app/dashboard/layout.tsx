@@ -76,13 +76,18 @@ export default function DashboardLayout({
               </Link>
             </nav>
           </div>
-          <Button
-            variant="outline"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-          >
-            {isLoggingOut ? "Logging out..." : "Logout"}
-          </Button>
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard/profile">
+              <Button variant="outline">Profile</Button>
+            </Link>
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              >
+              {isLoggingOut ? "Logging out..." : "Logout"}
+            </Button>
+          </div>
         </div>
       </header>
 
