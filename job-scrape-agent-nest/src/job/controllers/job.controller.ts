@@ -14,14 +14,23 @@ import { JobStatus } from '@prisma/client';
 import { JobHuntingService } from '../services/job-hunting.service';
 import { CreateManualJobDto } from '../dto/create-manual-job.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 @ApiTags('jobs')
 @Controller('api/jobs')
 export class JobController {
   constructor(
     private readonly prismaService: PrismaService,
+    @InjectQueue('job-hunting') private readonly jobHuntingQueue: Queue,
     private readonly jobHuntingService: JobHuntingService,
   ) {}
+
+  @Post('discover')
+  async triggerJobDiscovery() {
+    const job = await this.jobHuntingQueue.add('discover-jobs', {});
+    return { jobId: job.id, status: 'queued' };
+  }
   @Get()
   async findAll(
     @Query('status') status?: JobStatus,
