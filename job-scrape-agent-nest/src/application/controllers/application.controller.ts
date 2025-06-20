@@ -36,7 +36,17 @@ export class ApplicationController {
     @Query('sortOrder', new DefaultValuePipe('desc'))
     sortOrder?: 'asc' | 'desc',
   ) {
-    return this.applicationService.findAll(page, limit, sortBy, sortOrder);
+    const finalPage = page ?? 1;
+    const finalLimit = limit ?? 10;
+    const finalSortBy = sortBy ?? 'applied_at';
+    const finalSortOrder = sortOrder ?? 'desc';
+
+    return this.applicationService.findAll(
+      finalPage,
+      finalLimit,
+      finalSortBy,
+      finalSortOrder,
+    );
   }
 
   @Get(':id')

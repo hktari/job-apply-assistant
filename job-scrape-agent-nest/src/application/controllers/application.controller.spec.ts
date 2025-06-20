@@ -34,7 +34,7 @@ describe('ApplicationController', () => {
     remove: jest.fn().mockResolvedValue(mockApplication),
   };
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ApplicationController],
       providers: [
@@ -49,8 +49,8 @@ describe('ApplicationController', () => {
     applicationService = module.get<ApplicationService>(ApplicationService);
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  afterAll(async () => {
+    await Promise.resolve(jest.clearAllMocks());
   });
 
   it('should be defined', () => {
@@ -67,7 +67,7 @@ describe('ApplicationController', () => {
 
     it('should create an application', async () => {
       const result = await controller.create(createDto);
-
+      expect(result).toBeDefined();
       expect(applicationService.create).toHaveBeenCalledWith(createDto);
       expect(result).toEqual(mockApplication);
     });
@@ -76,7 +76,7 @@ describe('ApplicationController', () => {
   describe('findAll', () => {
     it('should return paginated applications', async () => {
       const result = await controller.findAll(1, 10, 'applied_at', 'desc');
-
+      expect(result).toBeDefined();
       expect(applicationService.findAll).toHaveBeenCalledWith(
         1,
         10,
@@ -95,8 +95,8 @@ describe('ApplicationController', () => {
     });
 
     it('should use default values when no parameters are provided', async () => {
-      await controller.findAll();
-
+      const result = await controller.findAll();
+      expect(result).toBeDefined();
       expect(applicationService.findAll).toHaveBeenCalledWith(
         1,
         10,
@@ -109,7 +109,7 @@ describe('ApplicationController', () => {
   describe('findOne', () => {
     it('should return a single application', async () => {
       const result = await controller.findOne(1);
-
+      expect(result).toBeDefined();
       expect(applicationService.findOne).toHaveBeenCalledWith(1);
       expect(result).toEqual(mockApplication);
     });
@@ -122,7 +122,7 @@ describe('ApplicationController', () => {
 
     it('should update an application', async () => {
       const result = await controller.update(1, updateDto);
-
+      expect(result).toBeDefined();
       expect(applicationService.update).toHaveBeenCalledWith(1, updateDto);
       expect(result).toEqual(mockApplication);
     });
@@ -131,7 +131,7 @@ describe('ApplicationController', () => {
   describe('remove', () => {
     it('should remove an application', async () => {
       const result = await controller.remove(1);
-
+      expect(result).toBeDefined();
       expect(applicationService.remove).toHaveBeenCalledWith(1);
       expect(result).toEqual(mockApplication);
     });
