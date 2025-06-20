@@ -2,9 +2,7 @@ import { IsObject } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsObject()
-  data: Record<string, any>;
+  data: ProfileData;
 }
 
-export interface ProfileData {
-  
-}
+export type ProfileData = Record<string, any>;

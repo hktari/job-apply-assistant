@@ -7,6 +7,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ProfileService } from '../services/profile.service';
+import { UpdateProfileDto } from '../dtos/profile.dto';
 
 @Controller('profile')
 export class ProfileController {
@@ -22,7 +23,7 @@ export class ProfileController {
   }
 
   @Put()
-  async updateProfile(@Body() profileData: any) {
+  async updateProfile(@Body() profileData: UpdateProfileDto) {
     return this.profileService.createOrUpdateProfile(profileData);
   }
 }

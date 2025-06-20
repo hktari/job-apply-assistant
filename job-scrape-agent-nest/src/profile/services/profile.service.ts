@@ -1,8 +1,7 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Profile } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateProfileDto } from '../dtos/profile.dto';
-import { JsonValue } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class ProfileService {

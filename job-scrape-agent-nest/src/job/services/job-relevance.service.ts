@@ -2,15 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OpenAI } from 'openai';
 import { ProfileService } from '../../profile/services/profile.service';
+import { ProfileData } from 'src/profile/dtos/profile.dto';
 
-// Define an interface for the structure of jobPreferences in profile.json
-interface JobPreferences {
-  roles: string[];
-  experience: string;
-  level: string;
-  locations: string[];
-  salary: string;
-}
+export type JobPreferences = Record<string, any>;
 
 // Define an interface for the expected AI response
 export interface AIRelevanceResponse {
@@ -35,7 +29,7 @@ export class JobRelevanceService {
   private async getJobPreferences(): Promise<JobPreferences> {
     try {
       const profile = await this.profileService.getProfile();
-      const data = JSON.parse(profile);
+      const data = profile.data as ProfileData;
       if (data && data.jobPreferences) {
         return data.jobPreferences as JobPreferences;
       } else {
