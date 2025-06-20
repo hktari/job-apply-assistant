@@ -123,9 +123,9 @@ describe('ApplicationService', () => {
       const found = await service.findOne(testApplication.id);
 
       expect(found).toBeDefined();
-      expect(found.id).toBe(testApplication.id);
-      expect(found.job).toBeDefined();
-      expect(found.job.id).toBe(testJob.id);
+      expect(found?.id).toBe(testApplication.id);
+      expect(found?.job).toBeDefined();
+      expect(found?.job?.id).toBe(testJob.id);
     });
   });
 
