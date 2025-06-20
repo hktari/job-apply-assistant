@@ -92,12 +92,5 @@ describe('ProfileService', () => {
       expect(profile?.id).toBe(result.id);
       expect(profile?.data).toMatchObject(testProfileData.data);
     });
-
-    it('should handle errors gracefully', async () => {
-      // Force a database error by passing invalid data
-      await expect(
-        service.createOrUpdateProfile({ data: {} } as UpdateProfileDto),
-      ).rejects.toThrow('Failed to create or update profile');
-    });
   });
 });

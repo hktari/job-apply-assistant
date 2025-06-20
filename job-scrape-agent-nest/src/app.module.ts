@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule } from './config/config.module';
 import { JobModule } from './job/job.module';
 import { ProfileModule } from './profile/profile.module';
+import { ApplicationModule } from './application/application.module';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { ExpressAdapter } from '@bull-board/express';
 
@@ -11,6 +12,7 @@ import { ExpressAdapter } from '@bull-board/express';
     ConfigModule,
     JobModule,
     ProfileModule,
+    ApplicationModule,
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',
