@@ -16,29 +16,18 @@ export class ProfileService {
     }
     return profile;
   }
-
   async createOrUpdateProfile(profileData: UpdateProfileDto): Promise<Profile> {
-    try {
-      const result = await this.prisma.$transaction(
-        async (tx): Promise<Profile> => {
-          const existingProfile = await tx.profile.findFirst();
+    const existingProfile = await this.prisma.profile.findFirst();
 
-          if (existingProfile) {
-            return tx.profile.update({
-              where: { id: existingProfile.id },
-              data: { data: profileData.data },
-            });
-          }
-
-          return tx.profile.create({
-            data: { data: profileData.data },
-          });
-        },
-      );
-      return result;
-    } catch (error) {
-      this.logger.error('Error updating profile:', error);
-      throw new Error('Failed to create or update profile');
+    if (existingProfile) {
+      return this.prisma.profile.update({
+        where: { id: existingProfile.id },
+        data: { data: profileData.data },
+      });
     }
+
+    return this.prisma.profile.create({
+      data: { data: profileData.data },
+    });
   }
 }
