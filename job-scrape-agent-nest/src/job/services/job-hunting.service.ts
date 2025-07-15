@@ -66,7 +66,7 @@ export class JobHuntingService {
     });
   }
 
-  private async isJobDuplicate(url: string): Promise<boolean> {
+  async isJobDuplicate(url: string): Promise<boolean> {
     const existingJob = await this.prisma.job.findUnique({
       where: { url },
     });

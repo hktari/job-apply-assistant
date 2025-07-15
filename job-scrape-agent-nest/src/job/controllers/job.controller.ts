@@ -9,6 +9,8 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
   ParseBoolPipe,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobStatus } from '@prisma/client';
@@ -147,7 +149,24 @@ export class JobController {
     description: 'The job has been successfully created.',
   })
   @ApiResponse({ status: 400, description: 'Invalid input data.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Job with this URL already exists.',
+  })
   async createManualJob(@Body() createManualJobDto: CreateManualJobDto) {
-    return this.jobHuntingService.createManualJob(createManualJobDto);
+    const existingJob = await this.prismaService.job.findUnique({
+      where: { url: createManualJobDto.url },
+    });
+    if (existingJob) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.CONFLICT,
+          message: 'Job with this URL already exists',
+          error: 'Conflict',
+        },
+        HttpStatus.CONFLICT,
+      );
+    }
+    return await this.jobHuntingService.createManualJob(createManualJobDto);
   }
 }

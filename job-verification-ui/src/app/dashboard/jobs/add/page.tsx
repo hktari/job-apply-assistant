@@ -21,6 +21,7 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/utils";
 
 // Define form validation schema
 const formSchema = z.object({
@@ -49,14 +50,16 @@ export default function AddJobPage() {
   const addJobMutation = useMutation({
     mutationFn: (data: CreateManualJobRequest) => jobsClient.addManualJob(data),
     onSuccess: () => {
-      toast.success("The job has been added and automatically approved.", {
-        description: "You can view it in the approved jobs list.",
+      toast.success("Job Added Successfully!", {
+        description: "The job has been added and automatically approved. You can view it in the approved jobs list.",
       });
       router.push("/dashboard/approved");
     },
     onError: (error) => {
-      toast.error("Error Adding Job", {
-        description: error instanceof Error ? error.message : "An unknown error occurred",
+      const { title, description } = getErrorMessage(error);
+      toast.error(title, {
+        description,
+        duration: 5000, // Show error longer for better visibility
       }); 
       setIsSubmitting(false);
     },
