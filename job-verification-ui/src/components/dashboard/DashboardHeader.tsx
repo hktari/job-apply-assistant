@@ -1,0 +1,98 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { MobileNav } from "@/components/ui/MobileNav";
+
+export function DashboardHeader() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = () => {
+    setIsLoggingOut(true);
+    // Clear the auth cookie
+    document.cookie = "auth_session=; path=/; max-age=0";
+    // Redirect to login page
+    router.push("/login");
+  };
+
+  return (
+    <header className="sticky top-0 z-10 border-b bg-white">
+      <div className="container flex h-16 items-center justify-between px-4">
+        <div className="flex items-center gap-4">
+          <MobileNav />
+          <Link href="/dashboard" className="text-xl font-bold">
+            Job Verification Dashboard
+          </Link>
+          <nav className="hidden md:flex items-center gap-6">
+            <Link
+              href="/dashboard"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                pathname === "/dashboard"
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              }`}
+            >
+              Pending Jobs
+            </Link>
+            <Link
+              href="/dashboard/approved"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                pathname === "/dashboard/approved"
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              }`}
+            >
+              Approved Jobs
+            </Link>
+            <Link
+              href="/dashboard/applied"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                pathname === "/dashboard/applied"
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              }`}
+            >
+              Applied Jobs
+            </Link>
+            <Link
+              href="/dashboard/jobs/add"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                pathname === "/dashboard/jobs/add"
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              }`}
+            >
+              Add Job
+            </Link>
+            <Link
+              href="/dashboard/rejected"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                pathname === "/dashboard/rejected"
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              }`}
+            >
+              Rejected
+            </Link>
+          </nav>
+        </div>
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/profile">
+            <Button variant="outline">Profile</Button>
+          </Link>
+          <Button
+            variant="outline"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+          >
+            {isLoggingOut ? "Logging out..." : "Logout"}
+          </Button>
+        </div>
+      </div>
+    </header>
+  );
+}

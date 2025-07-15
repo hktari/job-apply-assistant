@@ -39,7 +39,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | 'applied' | null>(null);
 
   const { data: job, isLoading, isError, error } = useQuery({
     queryKey: ['job', jobId],
@@ -96,7 +96,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
     },
   });
 
-  const handleAction = (type: 'approve' | 'reject') => {
+  const handleAction = (type: 'approve' | 'reject' | 'applied') => {
     setActionType(type);
     setDialogOpen(true);
   };
@@ -106,6 +106,8 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
       verifyMutation.mutate({ status: JobStatus.APPROVED, notes: values.notes });
     } else if (actionType === 'reject') {
       verifyMutation.mutate({ status: JobStatus.REJECTED, notes: values.notes });
+    } else if (actionType === 'applied') {
+      verifyMutation.mutate({ status: JobStatus.APPLIED, notes: values.notes });
     }
   };
 
@@ -150,7 +152,8 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
               <Button variant="outline" onClick={() => router.push('/dashboard')} className="w-full sm:w-auto">Back</Button>
               <Button variant="outline" onClick={() => setIsEditing(true)} className="w-full sm:w-auto">Edit</Button>
               <Button variant="destructive" onClick={() => handleAction('reject')} disabled={verifyMutation.isPending} className="w-full sm:w-auto">Reject</Button>
-              <Button onClick={() => handleAction('approve')} disabled={verifyMutation.isPending} className="w-full sm:w-auto">Approve</Button>
+              <Button  onClick={() => handleAction('approve')} disabled={verifyMutation.isPending} className="w-full sm:w-auto">Approve</Button>
+              <Button  onClick={() => handleAction('applied')} disabled={verifyMutation.isPending} className="w-full sm:w-auto bg-green-600">Mark as Applied</Button>
             </>
           ) : (
             <>
