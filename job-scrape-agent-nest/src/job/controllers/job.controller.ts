@@ -14,6 +14,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { JobStatus } from '@prisma/client';
 import { JobHuntingService } from '../services/job-hunting.service';
 import { CreateManualJobDto } from '../dto/create-manual-job.dto';
+import { UpdateJobDto } from '../dto/update-job.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -97,6 +98,32 @@ export class JobController {
       data: {
         status: data.status,
         notes: data.notes,
+        updated_at: new Date(),
+      },
+    });
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update a job entry' })
+  @ApiResponse({
+    status: 200,
+    description: 'The job has been successfully updated.',
+  })
+  @ApiResponse({ status: 404, description: 'Job not found.' })
+  @ApiResponse({ status: 400, description: 'Invalid input data.' })
+  async updateJob(@Param('id') id: string, @Body() updateJobDto: UpdateJobDto) {
+    const jobId = parseInt(id, 10);
+
+    // Convert posted_date string to Date if provided
+    const updateData: any = { ...updateJobDto };
+    if (updateJobDto.posted_date) {
+      updateData.posted_date = new Date(updateJobDto.posted_date);
+    }
+
+    return this.prismaService.job.update({
+      where: { id: jobId },
+      data: {
+        ...updateData,
         updated_at: new Date(),
       },
     });
