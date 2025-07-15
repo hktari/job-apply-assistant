@@ -15,7 +15,7 @@ import { JobStatus } from '@prisma/client';
 import { JobHuntingService } from '../services/job-hunting.service';
 import { CreateManualJobDto } from '../dto/create-manual-job.dto';
 import { UpdateJobDto } from '../dto/update-job.dto';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
@@ -34,6 +34,14 @@ export class JobController {
     return { jobId: job.id, status: 'queued' };
   }
   @Get()
+  @ApiOperation({ summary: 'Get all jobs with pagination and filtering' })
+  @ApiQuery({ name: 'status', required: false, enum: JobStatus })
+  @ApiQuery({ name: 'isRelevant', required: false, type: Boolean })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'sortBy', required: false, type: String })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
+  @ApiResponse({ status: 200, description: 'A list of jobs.' })
   async findAll(
     @Query('status') status?: JobStatus,
     @Query(

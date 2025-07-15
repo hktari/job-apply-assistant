@@ -33,11 +33,7 @@ export default function ProfileForm({ initialData }: ProfileFormProps) {
     e.preventDefault();
     try {
       const parsedData = JSON.parse(jsonData);
-      if (!parsedData.jobPreferences) {
-        toast.error('Profile must contain jobPreferences object');
-        return;
-      }
-      await updateProfileMutation({ data: parsedData });
+      await updateProfileMutation({ data: parsedData.data });
     } catch (error) {
       toast.error('Invalid JSON format');
       if (editorRef.current) {

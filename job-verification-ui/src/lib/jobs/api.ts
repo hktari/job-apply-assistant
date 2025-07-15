@@ -1,4 +1,5 @@
 import axios from "axios";
+import z from "zod";
 
 // Define the API base URL
 const API_BASE_URL =
@@ -48,6 +49,25 @@ export interface CreateManualJobRequest {
   notes: Job["notes"];
 }
 
+export const editJobSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  company: z.string().nullable(),
+  description: z.string().nullable(),
+  url: z.string().url('Invalid URL').nullable(),
+  region: z.string().nullable(),
+  job_type: z.string().nullable(),
+  experience: z.string().nullable(),
+  salary: z.string().nullable(),
+  posted_date: z.string().nullable(),
+  notes: z.string().nullable(),
+  is_relevant: z.boolean().nullable(),
+  relevance_reasoning: z.string().nullable(),
+  source: z.string().nullable(),
+  status: z.nativeEnum(JobStatus).nullable(),
+});
+
+export type UpdateJobRequest = z.infer<typeof editJobSchema>;
+
 export interface PaginatedResponse<T> {
   data: T[];
   meta: {
@@ -96,6 +116,12 @@ export const jobsApi = {
   addManualJob(jobData: CreateManualJobRequest): Promise<Job> {
     return api
       .post("/jobs/manual", jobData)
+      .then((response) => response.data);
+  },
+
+  updateJob(id: number, jobData: UpdateJobRequest): Promise<Job> {
+    return api
+      .patch(`/jobs/${id}`, jobData)
       .then((response) => response.data);
   },
 

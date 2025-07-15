@@ -1,5 +1,5 @@
 import axios from "axios";
-import { JobStatus, Job, PaginatedResponse, CreateManualJobRequest } from "./api"; // Import types from original api.ts
+import { JobStatus, Job, PaginatedResponse, CreateManualJobRequest, UpdateJobRequest } from "./api"; // Import types from original api.ts
 
 // Define the API base URL for the mock server
 const API_MOCK_BASE_URL = "http://localhost:3001";
@@ -88,6 +88,14 @@ export const jobsApiMock = {
     notes?: string,
   ): Promise<Job> => {
     const response = await mockApi.patch(`/jobs/${id}/verify`, { status, notes });
+    return response.data;
+  },
+
+  updateJob: async (
+    id: number,
+    jobData: UpdateJobRequest,
+  ): Promise<Job> => {
+    const response = await mockApi.patch(`/jobs/${id}`, jobData);
     return response.data;
   },
 
