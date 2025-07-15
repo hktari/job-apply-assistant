@@ -122,10 +122,13 @@ export class JobController {
   async updateJob(@Param('id') id: string, @Body() updateJobDto: UpdateJobDto) {
     const jobId = parseInt(id, 10);
 
-    // Convert posted_date string to Date if provided
+    // Convert posted_date string to Date if provided and valid
     const updateData: any = { ...updateJobDto };
-    if (updateJobDto.posted_date) {
+    if (updateJobDto.posted_date && updateJobDto.posted_date.trim() !== '') {
       updateData.posted_date = new Date(updateJobDto.posted_date);
+    } else if (updateJobDto.posted_date === '') {
+      // Set empty string to null for Prisma
+      updateData.posted_date = null;
     }
 
     return this.prismaService.job.update({

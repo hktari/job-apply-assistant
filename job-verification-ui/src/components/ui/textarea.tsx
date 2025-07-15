@@ -2,10 +2,10 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
+export type TextareaProps = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value'> & { value?: string | number | readonly string[] | undefined | null };
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, ...props }, ref) => {
+  ({ className, value, ...props }, ref) => {
     return (
       <textarea
         className={cn(
@@ -13,6 +13,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           className
         )}
         ref={ref}
+        value={value === null ? undefined : value}
         {...props}
       />
     );

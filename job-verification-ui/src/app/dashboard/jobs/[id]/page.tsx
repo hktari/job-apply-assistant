@@ -18,6 +18,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { getQueryClient } from '@/lib/get-query-client';
 import { editJobSchema, UpdateJobRequest } from '@/lib/jobs/api';
+import { toast } from 'sonner';
 
 const verificationSchema = z.object({
   notes: z.string().optional(),
@@ -58,8 +59,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
   useEffect(() => {
     if (job) {
       editForm.reset({
-        ...job,
-        posted_date: job.posted_date ? format(new Date(job.posted_date), 'yyyy-MM-dd') : '',
+        ...job
       });
     }
   }, [job, editForm]);
@@ -73,6 +73,12 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
       setDialogOpen(false);
       router.push('/dashboard');
     },
+    onError: (error) => {
+      toast.error("Error Verifying Job", {
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+      }); 
+      setDialogOpen(false);
+    },
   });
 
   const updateMutation = useMutation({
@@ -80,6 +86,12 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      setIsEditing(false);
+    },
+    onError: (error) => {
+      toast.error("Error Updating Job", {
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+      }); 
       setIsEditing(false);
     },
   });
@@ -125,7 +137,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
               control={editForm.control}
               name="company"
               render={({ field }) => (
-                <Input {...field} value={field.value || ''} placeholder="Company Name" className="text-muted-foreground" />
+                <Input {...field} value={field.value} placeholder="Company Name" className="text-muted-foreground" />
               )}
             />
           ) : (
@@ -172,7 +184,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
                         <FormField
                           control={editForm.control}
                           name="region"
-                          render={({ field }) => <Input {...field} value={field.value || ''} />}
+                          render={({ field }) => <Input {...field} value={field.value} />}
                         />
                       ) : (
                         <p>{job.region || 'Not specified'}</p>
@@ -184,7 +196,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
                         <FormField
                           control={editForm.control}
                           name="job_type"
-                          render={({ field }) => <Input {...field} value={field.value || ''} />}
+                          render={({ field }) => <Input {...field} value={field.value} />}
                         />
                       ) : (
                         <p>{job.job_type || 'Not specified'}</p>
@@ -196,7 +208,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
                         <FormField
                           control={editForm.control}
                           name="experience"
-                          render={({ field }) => <Input {...field} value={field.value || ''} />}
+                          render={({ field }) => <Input {...field} value={field.value} />}
                         />
                       ) : (
                         <p>{job.experience || 'Not specified'}</p>
@@ -208,7 +220,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
                         <FormField
                           control={editForm.control}
                           name="salary"
-                          render={({ field }) => <Input {...field} value={field.value || ''} />}
+                          render={({ field }) => <Input {...field} value={field.value} />}
                         />
                       ) : (
                         <p>{job.salary || 'Not specified'}</p>
@@ -220,7 +232,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
                           <FormField
                             control={editForm.control}
                             name="posted_date"
-                            render={({ field }) => <Input type="date" {...field} value={field.value || ''} />}
+                            render={({ field }) => <Input type="date" {...field} value={field.value} />}
                           />
                         ) : (
                           <p>{job.posted_date ? format(new Date(job.posted_date), 'MMMM d, yyyy') : 'Not specified'}</p>
@@ -232,7 +244,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
                         <FormField
                           control={editForm.control}
                           name="url"
-                          render={({ field }) => <Input {...field} value={field.value || ''} />}
+                          render={({ field }) => <Input {...field} value={field.value} />}
                         />
                       ) : (
                         <a href={job.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{job.url}</a>
@@ -245,7 +257,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
                       <FormField
                         control={editForm.control}
                         name="description"
-                        render={({ field }) => <Textarea {...field} value={field.value || ''} rows={10} />}
+                        render={({ field }) => <Textarea {...field} value={field.value} rows={10} />}
                       />
                     ) : (
                       <div className="rounded-md border p-4 max-h-96 overflow-y-auto whitespace-pre-line">{job.description || 'No description'}</div>
@@ -281,7 +293,7 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
                        <FormField
                         control={editForm.control}
                         name="relevance_reasoning"
-                        render={({ field }) => <Textarea {...field} value={field.value || ''} rows={5} />}
+                        render={({ field }) => <Textarea {...field} value={field.value} rows={5} />}
                       />
                     ) : (
                       <div className="rounded-md border p-4 whitespace-pre-line">{job.relevance_reasoning || 'No reasoning provided'}</div>
