@@ -84,9 +84,11 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest",
-      "node_modules/llm-scraper": "ts-jest"
+      "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(llm-scraper)/)"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
