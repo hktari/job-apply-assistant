@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { z } from 'zod';
-import LLMScraper from 'llm-scraper';
+import LLMScraper, { ScraperRunOptions } from 'llm-scraper';
 import { LanguageModelV1 } from 'ai';
 
 interface ScrapeResponse {
@@ -18,13 +18,14 @@ export class LLMScraperImpl {
   async scrapeUrl<T extends z.ZodSchema>(
     url: string,
     schema: T,
+    options?: ScraperRunOptions,
   ): Promise<ScrapeResponse> {
     const browser = await chromium.launch();
     const page = await browser.newPage();
     await page.goto(url);
 
     try {
-      const response = await this.scraper.run(page, schema, { format: 'html' });
+      const response = await this.scraper.run(page, schema, options);
       if (!response.data) {
         throw new Error(`Failed to scrape URL: ${url}`);
       }
