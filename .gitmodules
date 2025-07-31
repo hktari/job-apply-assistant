@@ -1,0 +1,3 @@
+[submodule "apply-agent"]
+	path = apply-agent
+	url = git@github.com:hktari/job-apply-assistant.git
