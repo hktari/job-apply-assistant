@@ -12,35 +12,37 @@ import { LLMScraperImpl } from './llm/llm-scraper';
 import { openai } from '@ai-sdk/openai';
 
 // Schema for items from the main job listing page
-const JobListPageItemSchema = z.object({
-  job_title: z.string().min(1, 'Job title cannot be empty'),
-  job_link: z.string().url('Invalid URL format for job link'),
-  posted_date_iso: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
-    .describe('The date the job was posted, in YYYY-MM-DD format.'),
-  constraints: z
-    .string()
-    .nullable()
-    .optional()
-    .describe(
-      "Any additional constraints mentioned for the job, e.g., country restrictions like 'USA only'.",
-    ),
-});
+const JobListPageItemSchema = z
+  .object({
+    job_title: z.string().min(1, 'Job title cannot be empty'),
+    job_link: z.string().url('Invalid URL format for job link'),
+    posted_date_iso: z
+      .string()
+      .describe('The date the job was posted, in YYYY-MM-DD format.'),
+    constraints: z
+      .string()
+      .optional()
+      .describe(
+        "Any additional constraints mentioned for the job, e.g., country restrictions like 'USA only'.",
+      ),
+  })
+  .describe('Items from the main job listing page');
 
 const JobListPageScrapeSchema = z.object({
   job_postings: z.array(JobListPageItemSchema),
 });
 
 // Schema for details scraped from individual job posting pages
-const JobDetailScrapeSchema = z.object({
-  region: z.string().nullable().optional(),
-  role: z.string().nullable().optional(),
-  experience: z.string().nullable().optional(),
-  company: z.string().nullable().optional(),
-  job_type: z.string().nullable().optional(),
-  salary: z.string().nullable().optional(),
-});
+const JobDetailScrapeSchema = z
+  .object({
+    region: z.string(),
+    role: z.string(),
+    experience: z.string(),
+    company: z.string(),
+    job_type: z.string(),
+    salary: z.string(),
+  })
+  .describe('Details scraped from individual job posting pages');
 
 export type JobListPageItem = z.infer<typeof JobListPageItemSchema>;
 export type JobListPageScrape = z.infer<typeof JobListPageScrapeSchema>;
@@ -360,6 +362,7 @@ export class JobHuntingService {
           job_title: job.job_title,
           job_link: job.job_link,
           posted_date_iso: job.posted_date_iso,
+          constraints: job.constraints,
           isRelevant: job.isRelevant,
           reasoning: job.reasoning,
         };

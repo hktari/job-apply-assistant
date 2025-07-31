@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { z } from 'zod';
 import LLMScraper, { ScraperRunOptions } from 'llm-scraper';
 import { LanguageModelV1 } from 'ai';
-
+import { Logger } from '@nestjs/common';
 interface ScrapeResponse {
   success: boolean;
   error?: string;
@@ -10,9 +10,12 @@ interface ScrapeResponse {
 }
 export class LLMScraperImpl {
   private scraper: LLMScraper;
-
+  private readonly logger = new Logger(LLMScraperImpl.name);
+  private readonly modelId: string;
   constructor(llm: LanguageModelV1) {
     this.scraper = new LLMScraper(llm);
+    this.logger.debug(`LLMScraperImpl initialized with ${llm.modelId}`);
+    this.modelId = llm.modelId;
   }
 
   async scrapeUrl<T extends z.ZodSchema>(
@@ -25,9 +28,11 @@ export class LLMScraperImpl {
     await page.goto(url);
 
     try {
+      this.logger.debug(`Scraping URL: ${url} using ${this.modelId}`);
       const response = await this.scraper.run(page, schema, options);
       if (!response.data) {
-        throw new Error(`Failed to scrape URL: ${url}`);
+        this.logger.error(`Failed to scrape URL: ${url}`, { cause: response });
+        throw new Error(`Failed to scrape URL: ${url}`, { cause: response });
       }
       return {
         success: true,
