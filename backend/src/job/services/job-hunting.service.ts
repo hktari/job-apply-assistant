@@ -8,6 +8,8 @@ import { Job, JobStatus, Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { CreateManualJobDto } from '../dto/create-manual-job.dto';
 import { JobSourceManual } from '../interface';
+import { LLMScraperImpl } from './llm/llm-scraper';
+import { openai } from '@ai-sdk/openai';
 
 // Schema for items from the main job listing page
 const JobListPageItemSchema = z.object({
@@ -54,16 +56,15 @@ export type AnalyzedJobListPageItem = JobListPageItem & {
 @Injectable()
 export class JobHuntingService {
   private readonly logger = new Logger(JobHuntingService.name);
-  private firecrawlClient: FirecrawlApp;
-
+  private llmScraper: LLMScraperImpl;
   constructor(
     private prisma: PrismaService,
     private jobRelevanceService: JobRelevanceService,
     private configService: ConfigService,
   ) {
-    this.firecrawlClient = new FirecrawlApp({
-      apiKey: this.configService.get<string>('FIRECRAWL_API_KEY'),
-    });
+    this.llmScraper = new LLMScraperImpl(
+      openai.chat(this.configService.get<string>('MODEL_ID') || 'gpt-4.1'),
+    );
   }
 
   async isJobDuplicate(url: string): Promise<boolean> {
@@ -198,13 +199,11 @@ export class JobHuntingService {
     for (const jobListUrl of jobListUrls) {
       this.logger.log(`Scraping initial job list from ${jobListUrl}...`);
       try {
-        const initialScrapeResult = (await this.firecrawlClient.scrapeUrl(
+        const initialScrapeResult = (await this.llmScraper.scrapeUrl(
           jobListUrl,
+          JobListPageScrapeSchema,
           {
-            formats: ['json'],
-            jsonOptions: {
-              schema: JobListPageScrapeSchema,
-              prompt: `
+            prompt: `
             Extract all job postings from this page. 
             
             For each job, provide its title (job_title), 
@@ -217,8 +216,6 @@ export class JobHuntingService {
             If a date like '15.03.2024' is given, convert it to '2024-03-15'. 
             
             Ensure job_link is a full URL.`,
-            },
-            onlyMainContent: true,
           },
         )) as ScrapeResponse;
 
@@ -323,13 +320,11 @@ export class JobHuntingService {
     const matchedJobs: AnalyzedJobPosting[] = [];
     for (const job of relevantJobs) {
       try {
-        const detailScrapeResult = (await this.firecrawlClient.scrapeUrl(
+        const detailScrapeResult = await this.llmScraper.scrapeUrl(
           job.job_link,
+          JobDetailScrapeSchema,
           {
-            formats: ['json'],
-            jsonOptions: {
-              schema: JobDetailScrapeSchema,
-              prompt: `
+            prompt: `
             Extract the following job details:
             - region: The location/region where the job is based
             - role: The full job description or role details
@@ -339,10 +334,8 @@ export class JobHuntingService {
             - salary: Any salary or compensation information
             
             Return null for any fields that are not found in the content.`,
-            },
-            onlyMainContent: true,
           },
-        )) as ScrapeResponse;
+        );
 
         if (!detailScrapeResult.success || !detailScrapeResult.json) {
           this.logger.warn(

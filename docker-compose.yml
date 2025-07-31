@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 services:
   db:
     image: postgres:15
@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: job_apply
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
 
@@ -16,13 +16,13 @@ services:
     image: redis:7
     restart: always
     ports:
-      - '6379:6379'
+      - "6379:6379"
     volumes:
       - redis_data:/data
-      
-  job-scrape-agent:
+
+  backend:
     build:
-      context: ./job-scrape-agent-nest
+      context: ./backend
       dockerfile: Dockerfile
     ports:
       - "${SCRAPE_AGENT_PORT:-3001}:3001"
@@ -39,7 +39,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL_ID=${OPENAI_MODEL_ID}
     volumes:
-      - ./job-scrape-agent-nest/logs:/app/logs
+      - ./backend/logs:/app/logs
 
   nginx:
     image: nginx:alpine
@@ -48,7 +48,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - job-scrape-agent
+      - backend
     restart: always
 
 volumes:
