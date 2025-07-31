@@ -64,7 +64,7 @@ Is this job title relevant based on these preferences? Provide your answer in th
 `;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: this.configService.get<string>('ANALYSIS_MODEL_ID') || 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

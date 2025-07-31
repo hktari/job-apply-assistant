@@ -58,14 +58,20 @@ export type AnalyzedJobListPageItem = JobListPageItem & {
 @Injectable()
 export class JobHuntingService {
   private readonly logger = new Logger(JobHuntingService.name);
-  private llmScraper: LLMScraperImpl;
+  private listScraper: LLMScraperImpl;
+  private detailScraper: LLMScraperImpl;
   constructor(
     private prisma: PrismaService,
     private jobRelevanceService: JobRelevanceService,
     private configService: ConfigService,
   ) {
-    this.llmScraper = new LLMScraperImpl(
-      openai.chat(this.configService.get<string>('MODEL_ID') || 'gpt-4.1'),
+    this.listScraper = new LLMScraperImpl(
+      openai.chat(this.configService.get<string>('LIST_MODEL_ID') || 'gpt-4o'),
+    );
+    this.detailScraper = new LLMScraperImpl(
+      openai.chat(
+        this.configService.get<string>('DETAIL_MODEL_ID') || 'gpt-4.1',
+      ),
     );
   }
 
@@ -201,7 +207,7 @@ export class JobHuntingService {
     for (const jobListUrl of jobListUrls) {
       this.logger.log(`Scraping initial job list from ${jobListUrl}...`);
       try {
-        const initialScrapeResult = (await this.llmScraper.scrapeUrl(
+        const initialScrapeResult = (await this.listScraper.scrapeUrl(
           jobListUrl,
           JobListPageScrapeSchema,
           {
@@ -327,7 +333,7 @@ export class JobHuntingService {
     const matchedJobs: AnalyzedJobPosting[] = [];
     for (const job of relevantJobs) {
       try {
-        const detailScrapeResult = await this.llmScraper.scrapeUrl(
+        const detailScrapeResult = await this.detailScraper.scrapeUrl(
           job.job_link,
           JobDetailScrapeSchema,
           {
