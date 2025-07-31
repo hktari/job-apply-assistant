@@ -21,7 +21,9 @@ export const getProfile = async (): Promise<ProfileData> => {
   return response.data;
 };
 
-export const updateProfile = async (profileData: ProfileData): Promise<ProfileData> => {
+export const updateProfile = async (
+  profileData: ProfileData,
+): Promise<ProfileData> => {
   const response = await axios.put(`${API_URL}/profile`, profileData);
   return response.data;
 };

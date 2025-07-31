@@ -13,7 +13,9 @@ interface ProfileFormProps {
 }
 
 export default function ProfileForm({ initialData }: ProfileFormProps) {
-  const [jsonData, setJsonData] = useState(JSON.stringify(initialData, null, 2));
+  const [jsonData, setJsonData] = useState(
+    JSON.stringify(initialData, null, 2),
+  );
   const queryClient = getQueryClient();
   const editorRef = useRef<Parameters<OnMount>[0]>(null);
 
@@ -42,15 +44,15 @@ export default function ProfileForm({ initialData }: ProfileFormProps) {
     }
   };
 
-  return (  
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2 h-[500px] border rounded-md overflow-hidden">
+  return (
+    <form onSubmit={handleSubmit} className='space-y-4'>
+      <div className='h-[500px] space-y-2 overflow-hidden rounded-md border'>
         <Editor
-          height="100%"
-          defaultLanguage="json"
+          height='100%'
+          defaultLanguage='json'
           value={jsonData}
           onChange={(value) => value && setJsonData(value)}
-          theme="vs-dark"
+          theme='vs-dark'
           options={{
             minimap: { enabled: false },
             fontSize: 14,
@@ -62,8 +64,8 @@ export default function ProfileForm({ initialData }: ProfileFormProps) {
           }}
         />
       </div>
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isPending}>
+      <div className='flex justify-end'>
+        <Button type='submit' disabled={isPending}>
           {isPending ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>

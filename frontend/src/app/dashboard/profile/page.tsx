@@ -8,18 +8,22 @@ import { Loader2 } from 'lucide-react';
 import ProfileForm from './profile-form';
 
 export default function ProfilePage() {
-  const { data: profile, isLoading, error } = useQuery({
+  const {
+    data: profile,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['profile'],
     queryFn: getProfile,
   });
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8">
+      <div className='container mx-auto py-8'>
         <Card>
-          <CardContent className="py-8">
-            <div className="flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin" />
+          <CardContent className='py-8'>
+            <div className='flex items-center justify-center'>
+              <Loader2 className='h-8 w-8 animate-spin' />
             </div>
           </CardContent>
         </Card>
@@ -29,13 +33,13 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className="container mx-auto py-8">
+      <div className='container mx-auto py-8'>
         <Card>
-          <CardContent className="py-8">
-            <div className="flex flex-col items-center justify-center gap-4">
-              <p className="text-destructive">Failed to load profile</p>
+          <CardContent className='py-8'>
+            <div className='flex flex-col items-center justify-center gap-4'>
+              <p className='text-destructive'>Failed to load profile</p>
               <Button
-                variant="outline"
+                variant='outline'
                 onClick={() => window.location.reload()}
               >
                 Retry
@@ -48,7 +52,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className='container mx-auto py-8'>
       <Card>
         <CardHeader>
           <CardTitle>Profile Settings</CardTitle>

@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import * as React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Menu, X } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
   Sheet,
   SheetContent,
@@ -13,15 +13,15 @@ import {
   SheetTitle,
   SheetTrigger,
   SheetClose,
-} from "@/components/ui/sheet";
-import { cn } from "@/lib/utils"; // Assuming you have a utility for class names
+} from '@/components/ui/sheet';
+import { cn } from '@/lib/utils'; // Assuming you have a utility for class names
 
 // Define your navigation items here
 const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/dashboard/profile", label: "Profile" },
-  { href: "/dashboard/approved", label: "Approved Jobs" },
-  { href: "/dashboard/jobs/add", label: "Add Job" },
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/dashboard/profile', label: 'Profile' },
+  { href: '/dashboard/approved', label: 'Approved Jobs' },
+  { href: '/dashboard/jobs/add', label: 'Add Job' },
   // { href: "/dashboard/rejected", label: "Rejected Jobs" }, // Example link
   // Add more navigation items as needed
 ];
@@ -34,27 +34,25 @@ export function MobileNav() {
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden" // Only show on smaller screens
-          aria-label="Open navigation menu"
+          variant='ghost'
+          size='icon'
+          className='md:hidden' // Only show on smaller screens
+          aria-label='Open navigation menu'
         >
-          <Menu className="h-6 w-6" />
+          <Menu className='h-6 w-6' />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm p-0">
-        <SheetHeader className="border-b p-4">
-          <SheetTitle className="text-lg font-semibold">
-            Navigation
-          </SheetTitle>
-          <SheetClose asChild className="absolute right-4 top-4">
-            <Button variant="ghost" size="icon">
-              <X className="h-5 w-5" />
-              <span className="sr-only">Close</span>
+      <SheetContent side='left' className='w-full max-w-xs p-0 sm:max-w-sm'>
+        <SheetHeader className='border-b p-4'>
+          <SheetTitle className='text-lg font-semibold'>Navigation</SheetTitle>
+          <SheetClose asChild className='absolute top-4 right-4'>
+            <Button variant='ghost' size='icon'>
+              <X className='h-5 w-5' />
+              <span className='sr-only'>Close</span>
             </Button>
           </SheetClose>
         </SheetHeader>
-        <nav className="flex flex-col space-y-2 p-4">
+        <nav className='flex flex-col space-y-2 p-4'>
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -65,10 +63,10 @@ export function MobileNav() {
               <SheetClose asChild>
                 <a
                   className={cn(
-                    "block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+                    'block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900',
                     pathname === item.href
-                      ? "bg-gray-100 text-gray-900"
-                      : "text-gray-500"
+                      ? 'bg-gray-100 text-gray-900'
+                      : 'text-gray-500',
                   )}
                   onClick={() => setIsOpen(false)} // Close sheet on link click
                 >

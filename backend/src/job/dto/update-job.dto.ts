@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUrl, IsEnum, IsBoolean, IsDateString } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUrl,
+  IsEnum,
+  IsBoolean,
+  IsDateString,
+} from 'class-validator';
 import { JobStatus } from '@prisma/client';
 
 export class UpdateJobDto {

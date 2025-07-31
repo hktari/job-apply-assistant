@@ -1,26 +1,26 @@
-import axios from "axios";
-import z from "zod";
+import axios from 'axios';
+import z from 'zod';
 
 // Define the API base URL
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 // Create an axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
 });
 
 // Define types based on the Prisma schema
 export enum JobStatus {
-  PENDING = "PENDING",
-  APPROVED = "APPROVED",
-  REJECTED = "REJECTED",
-  APPLIED = "APPLIED",
-  INTERVIEW = "INTERVIEW",
-  REJECTED_BY_COMPANY = "REJECTED_BY_COMPANY",
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  APPLIED = 'APPLIED',
+  INTERVIEW = 'INTERVIEW',
+  REJECTED_BY_COMPANY = 'REJECTED_BY_COMPANY',
 }
 
 export interface Job {
@@ -43,10 +43,10 @@ export interface Job {
   notes: string | null;
 }
 export interface CreateManualJobRequest {
-  title: Job["title"];
-  company: Job["company"];
-  url: Job["url"];
-  notes: Job["notes"];
+  title: Job['title'];
+  company: Job['company'];
+  url: Job['url'];
+  notes: Job['notes'];
 }
 
 export const editJobSchema = z.object({
@@ -85,12 +85,12 @@ export const jobsApi = {
     status: JobStatus = JobStatus.PENDING,
     page: number = 1,
     limit: number = 10,
-    sortBy: string = "created_at",
-    sortOrder: "asc" | "desc" = "desc",
+    sortBy: string = 'created_at',
+    sortOrder: 'asc' | 'desc' = 'desc',
     isRelevant?: boolean,
   ): Promise<PaginatedResponse<Job>> {
     return api
-      .get("/jobs", {
+      .get('/jobs', {
         params: { status, page, limit, sortBy, sortOrder, isRelevant },
       })
       .then((response) => response.data);
@@ -102,11 +102,7 @@ export const jobsApi = {
   },
 
   // Update job verification status
-  verifyJob(
-    id: number,
-    status: JobStatus,
-    notes?: string,
-  ): Promise<Job> {
+  verifyJob(id: number, status: JobStatus, notes?: string): Promise<Job> {
     return api
       .patch(`/jobs/${id}/verify`, { status, notes })
       .then((response) => response.data);
@@ -114,22 +110,16 @@ export const jobsApi = {
 
   // Add a job manually
   addManualJob(jobData: CreateManualJobRequest): Promise<Job> {
-    return api
-      .post("/jobs/manual", jobData)
-      .then((response) => response.data);
+    return api.post('/jobs/manual', jobData).then((response) => response.data);
   },
 
   updateJob(id: number, jobData: UpdateJobRequest): Promise<Job> {
-    return api
-      .patch(`/jobs/${id}`, jobData)
-      .then((response) => response.data);
+    return api.patch(`/jobs/${id}`, jobData).then((response) => response.data);
   },
 
   // Trigger job discovery process
   triggerJobDiscovery(): Promise<{ jobId: string; status: string }> {
-    return api
-      .post("/jobs/discover")
-      .then((response) => response.data);
+    return api.post('/jobs/discover').then((response) => response.data);
   },
 };
 
