@@ -25,20 +25,24 @@ export class LLMScraperImpl {
   ): Promise<ScrapeResponse> {
     const browser = await chromium.launch();
     const page = await browser.newPage();
-    await page.goto(url);
 
     try {
+      await page.goto(url, { waitUntil: 'networkidle' });
+
       this.logger.debug(`Scraping URL: ${url} using ${this.modelId}`);
       const response = await this.scraper.run(page, schema, options);
+
       if (!response.data) {
         this.logger.error(`Failed to scrape URL: ${url}`, { cause: response });
         throw new Error(`Failed to scrape URL: ${url}`, { cause: response });
       }
+
       return {
         success: true,
         json: response.data,
       };
     } catch (e: any) {
+      this.logger.error(`Error scraping URL ${url}: ${e.message}`);
       return {
         success: false,
         error: e.message,

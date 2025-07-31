@@ -205,6 +205,7 @@ export class JobHuntingService {
           jobListUrl,
           JobListPageScrapeSchema,
           {
+            format: 'html',
             prompt: `
             Extract all job postings from this page. 
             
@@ -253,6 +254,11 @@ export class JobHuntingService {
         this.logger.error(
           `Error in initial job list scrape for ${jobListUrl}: ${e.message}`,
         );
+        this.logger.debug(`Full error details for ${jobListUrl}:`, {
+          message: e.message,
+          stack: e.stack,
+          cause: e.cause,
+        });
       }
     }
 
@@ -326,6 +332,7 @@ export class JobHuntingService {
           job.job_link,
           JobDetailScrapeSchema,
           {
+            format: 'html',
             prompt: `
             Extract the following job details:
             - region: The location/region where the job is based
