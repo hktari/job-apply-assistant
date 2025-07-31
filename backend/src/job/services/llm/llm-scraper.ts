@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { z } from 'zod';
-import LLMScraper, { ScraperRunOptions } from 'llm-scraper';
+import LLMScraper from 'llm-scraper';
 import { LanguageModelV1 } from 'ai';
 import { Logger } from '@nestjs/common';
 interface ScrapeResponse {
@@ -21,7 +21,7 @@ export class LLMScraperImpl {
   async scrapeUrl<T extends z.ZodSchema>(
     url: string,
     schema: T,
-    options?: ScraperRunOptions,
+    options?: { prompt: string },
   ): Promise<ScrapeResponse> {
     const browser = await chromium.launch();
     const page = await browser.newPage();
@@ -30,7 +30,10 @@ export class LLMScraperImpl {
       await page.goto(url, { waitUntil: 'networkidle' });
 
       this.logger.debug(`Scraping URL: ${url} using ${this.modelId}`);
-      const response = await this.scraper.run(page, schema, options);
+      const response = await this.scraper.run(page, schema, {
+        ...options,
+        format: 'html',
+      });
 
       if (!response.data) {
         this.logger.error(`Failed to scrape URL: ${url}`, { cause: response });
