@@ -10,6 +10,8 @@ import { JobDiscoveryService } from './services/job-discovery.service';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { JobController } from './controllers/job.controller';
+import { LLMMetricsController } from './controllers/llm-metrics.controller';
+import { LLMObservabilityService } from './services/llm/llm-observability.service';
 @Module({
   imports: [
     ProfileModule,
@@ -28,8 +30,9 @@ import { JobController } from './controllers/job.controller';
     JobRelevanceService,
     PrismaService,
     JobDiscoveryService,
+    LLMObservabilityService,
   ],
-  controllers: [JobController],
+  controllers: [JobController, LLMMetricsController],
   exports: [JobHuntingService, JobRelevanceService],
 })
 export class JobModule {}
