@@ -357,7 +357,13 @@ export class JobHuntingService {
   // Step 3: Filter jobs by date
   private filterJobsByDate(jobs: JobListPageItem[]): JobListPageItem[] {
     const dateThreshold = new Date();
-    dateThreshold.setMonth(dateThreshold.getMonth() - 1);
+    const ignorePostingsOlderThanMonths = this.configService.get<number>(
+      'IGNORE_POSTINGS_OLDER_THAN_MONTHS',
+      4,
+    );
+    dateThreshold.setMonth(
+      dateThreshold.getMonth() - ignorePostingsOlderThanMonths,
+    );
 
     const recentJobs = jobs.filter((job) => {
       try {
