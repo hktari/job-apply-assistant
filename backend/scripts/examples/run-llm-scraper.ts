@@ -24,7 +24,7 @@ async function main() {
   const result = await scraper.scrapeUrl(
     'https://blog.logrocket.com/',
     featuredPost,
-    { format: 'html', prompt: 'Scrape the page for featured posts' },
+    { prompt: 'Scrape the page for featured posts' },
   );
 
   console.log(JSON.stringify(result, null, 2));
