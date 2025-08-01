@@ -66,7 +66,9 @@ export class JobHuntingService {
     private configService: ConfigService,
   ) {
     this.listScraper = new LLMScraperImpl(
-      openai.chat(this.configService.get<string>('LIST_MODEL_ID') || 'gpt-4o'),
+      openai.chat(
+        this.configService.get<string>('LIST_MODEL_ID') || 'gpt-4.1-mini',
+      ),
     );
     this.detailScraper = new LLMScraperImpl(
       openai.chat(
