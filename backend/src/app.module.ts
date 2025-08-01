@@ -17,6 +17,7 @@ import { ExpressAdapter } from '@bull-board/express';
       connection: {
         family: 0,
         host: process.env.REDIS_HOST || 'localhost',
+        password: process.env.REDIS_PASSWORD || undefined,
         port: parseInt(process.env.REDIS_PORT || '6379', 10),
       },
     }),

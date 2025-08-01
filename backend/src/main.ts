@@ -8,13 +8,12 @@ async function bootstrap() {
     logger: logger,
   });
   app.setGlobalPrefix('api');
-  if (process.env.NODE_ENV === 'development') {
-    const corsOptions = {
-      origin: '*',
-      credentials: true,
-    };
-    app.enableCors(corsOptions);
-  }
+
+  const corsOptions = {
+    origin: '*',
+    credentials: true,
+  };
+  app.enableCors(corsOptions);
   const config = new DocumentBuilder()
     .setTitle('Job Scrape Agent')
     .setDescription('The Job Scrape Agent API description')
