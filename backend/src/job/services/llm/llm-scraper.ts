@@ -1,18 +1,25 @@
 import { chromium } from 'playwright';
 import { z } from 'zod';
 import LLMScraper from 'llm-scraper';
-import { LanguageModelV1 } from 'ai';
+import { LanguageModelV1 } from '@ai-sdk/provider';
 import { Logger } from '@nestjs/common';
-interface ScrapeResponse {
+import { LLMObservabilityService } from './llm-observability.service';
+
+export interface ScrapeResponse {
   success: boolean;
-  error?: string;
   json?: any;
+  error?: string;
 }
+
 export class LLMScraperImpl {
   private scraper: LLMScraper;
   private readonly logger = new Logger(LLMScraperImpl.name);
   private readonly modelId: string;
-  constructor(llm: LanguageModelV1) {
+
+  constructor(
+    llm: LanguageModelV1,
+    private llmObservabilityService?: LLMObservabilityService,
+  ) {
     this.scraper = new LLMScraper(llm);
     this.logger.debug(`LLMScraperImpl initialized with ${llm.modelId}`);
     this.modelId = llm.modelId;
@@ -30,20 +37,58 @@ export class LLMScraperImpl {
       await page.goto(url, { waitUntil: 'networkidle' });
 
       this.logger.debug(`Scraping URL: ${url} using ${this.modelId}`);
-      const response = await this.scraper.run(page, schema, {
-        ...options,
-        format: 'html',
-      });
 
-      if (!response.data) {
-        this.logger.error(`Failed to scrape URL: ${url}`, { cause: response });
-        throw new Error(`Failed to scrape URL: ${url}`, { cause: response });
+      // Track the scraping call if observability service is available
+      if (this.llmObservabilityService) {
+        const { result: response } =
+          await this.llmObservabilityService.trackLLMScraperCall(
+            () =>
+              this.scraper.run(page, schema, {
+                ...options,
+                format: 'html',
+              }),
+            {
+              name: 'llm_scraper_extraction',
+              tags: ['scraping', 'data-extraction'],
+              url,
+              schema: schema.constructor.name,
+              metadata: {
+                prompt: options?.prompt,
+                modelId: this.modelId,
+              },
+            },
+          );
+
+        if (!response.data) {
+          this.logger.error(`Failed to scrape URL: ${url}`, {
+            cause: response,
+          });
+          throw new Error(`Failed to scrape URL: ${url}`, { cause: response });
+        }
+
+        return {
+          success: true,
+          json: response.data,
+        };
+      } else {
+        // Fallback to direct scraping without observability
+        const response = await this.scraper.run(page, schema, {
+          ...options,
+          format: 'html',
+        });
+
+        if (!response.data) {
+          this.logger.error(`Failed to scrape URL: ${url}`, {
+            cause: response,
+          });
+          throw new Error(`Failed to scrape URL: ${url}`, { cause: response });
+        }
+
+        return {
+          success: true,
+          json: response.data,
+        };
       }
-
-      return {
-        success: true,
-        json: response.data,
-      };
     } catch (e: any) {
       this.logger.error(`Error scraping URL ${url}: ${e.message}`);
       return {

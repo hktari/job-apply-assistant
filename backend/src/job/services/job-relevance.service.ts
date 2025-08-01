@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { OpenAI } from 'openai';
 import { ProfileService } from '../../profile/services/profile.service';
 import { ProfileData } from 'src/profile/dtos/profile.dto';
+import { LLMObservabilityService } from './llm/llm-observability.service';
 
 export type JobPreferences = Record<string, any>;
 
@@ -16,14 +17,17 @@ export interface AIRelevanceResponse {
 export class JobRelevanceService {
   private openai: OpenAI;
   private readonly logger = new Logger(JobRelevanceService.name);
+  private readonly llmObservabilityService: LLMObservabilityService;
 
   constructor(
     private configService: ConfigService,
     private profileService: ProfileService,
+    llmObservabilityService: LLMObservabilityService,
   ) {
     this.openai = new OpenAI({
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
     });
+    this.llmObservabilityService = llmObservabilityService;
   }
 
   private async getJobPreferences(): Promise<JobPreferences> {
@@ -63,13 +67,41 @@ ${JSON.stringify(jobPreferences, null, 2)}
 Is this job title relevant based on these preferences? Provide your answer in the specified JSON format.
 `;
 
-      const completion = await this.openai.chat.completions.create({
-        model: this.configService.get<string>('ANALYSIS_MODEL_ID') || 'gpt-4.1',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
+      const { result: completion, metrics } =
+        await this.llmObservabilityService.trackOpenAICall(
+          () =>
+            this.openai.chat.completions.create({
+              model:
+                this.configService.get<string>('ANALYSIS_MODEL_ID') ||
+                'gpt-4.1',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+              ],
+              response_format: { type: 'json_object' },
+            }),
+          {
+            name: 'job_relevance_analysis',
+            tags: ['job-analysis', 'relevance'],
+            metadata: {
+              jobTitle,
+              hasPreferences: !!jobPreferences,
+            },
+          },
+          {
+            model:
+              this.configService.get<string>('ANALYSIS_MODEL_ID') || 'gpt-4.1',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+          },
+        );
+
+      this.logger.log(`Job relevance analysis completed for "${jobTitle}"`, {
+        tokens: metrics.totalTokens,
+        cost: metrics.cost,
+        latency: `${metrics.latency}ms`,
       });
 
       const aiResponseContent = completion.choices[0]?.message?.content;

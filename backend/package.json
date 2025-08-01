@@ -39,6 +39,7 @@
     "bullmq": "^5.52.2",
     "class-validator": "^0.14.2",
     "express-basic-auth": "^1.2.1",
+    "langfuse": "^3.38.4",
     "llm-scraper": "^1.6.0",
     "nest-winston": "^1.10.2",
     "openai": "^4.100.0",
