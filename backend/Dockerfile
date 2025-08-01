@@ -11,6 +11,9 @@ COPY package*.json ./
 # Install the application dependencies
 RUN npm install
 
+# Install Playwright browsers
+RUN npx playwright install --with-deps chromium
+
 # Copy the rest of the application files
 COPY . .
 
@@ -23,4 +26,4 @@ RUN npm run build
 EXPOSE 3001
 
 # Command to run the application
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main"]
