@@ -284,6 +284,10 @@ export class JobHuntingService {
           return [];
         }
 
+        this.logger.debug(
+          `Received data from ${jobListUrl}:`,
+          JSON.stringify(initialScrapeResult.json, null, 2),
+        );
         const parsedInitialData = JobListPageScrapeSchema.safeParse(
           initialScrapeResult.json,
         );

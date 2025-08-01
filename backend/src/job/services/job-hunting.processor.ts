@@ -192,17 +192,19 @@ export class JobHuntingProcessor extends WorkerHost {
       return defaultUrls.split(',').map((url) => url.trim());
     }
 
-    // Fallback to hardcoded URLs if not configured
-    return [
-      'https://slo-tech.com/delo',
-      'https://www.bettercareer.si/jobs',
-      'https://www.optius.com/iskalci/prosta-delovna-mesta/?Keywords=&amp;Fields%5B%5D=37&amp;doSearch=&amp;Time=',
-      'https://www.optius.com/iskalci/prosta-delovna-mesta/?Keywords=&amp;Fields%5B%5D=42&amp;doSearch=&amp;Time=',
+    const urlsWithScraperProtection = [
       'https://weworkremotely.com/remote-react-jobs',
       'https://weworkremotely.com/remote-javascript-jobs',
       'https://weworkremotely.com/remote-node-jobs',
       'https://weworkremotely.com/remote-angular-jobs',
       'https://weworkremotely.com/remote-full-time-jobs',
+    ];
+    // Fallback to hardcoded URLs if not configured
+    return [
+      'https://slo-tech.com/delo',
+      'https://www.bettercareer.si/jobs/frontend?category=frontend&subcategories=React&page=1',
+      'https://www.bettercareer.si/jobs/fullstack?category=fullstack&subcategories=React%2CAngular%2CNode%2COstalo&page=1',
+      'https://www.optius.com/iskalci/prosta-delovna-mesta/?Keywords=&Fields%5B%5D=37&doSearch=&Time=',
     ];
   }
 }
