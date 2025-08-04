@@ -412,18 +412,7 @@ export class JobHuntingService {
       const detailScrapeResult = await this.detailScraper.scrapeUrl(
         jobLink,
         JobDetailsSchema,
-        {
-          prompt: `
-          Extract the following job details:
-          - region: The location/region where the job is based
-          - role: The full job description or role details
-          - experience: Any mentioned experience requirements
-          - company: The company name
-          - job_type: The type of employment (e.g., full-time, contract)
-          - salary: Any salary or compensation information
-          
-          Return null for any fields that are not found in the content.`,
-        },
+        { prompt: 'Scrape the page for job details' },
       );
 
       if (!detailScrapeResult.success || !detailScrapeResult.json) {
