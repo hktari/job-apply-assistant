@@ -10,50 +10,13 @@ import { CreateManualJobDto } from '../dto/create-manual-job.dto';
 import { JobSourceManual } from '../interface';
 import { LLMScraperImpl } from './llm/llm-scraper';
 import { openai } from '@ai-sdk/openai';
-
-// Schema for items from the main job listing page
-const JobListPageItemSchema = z
-  .object({
-    job_title: z.string().min(1, 'Job title cannot be empty'),
-    job_link: z.string().url('Invalid URL format for job link'),
-    posted_date_iso: z
-      .string()
-      .describe('The date the job was posted, in YYYY-MM-DD format.'),
-    constraints: z
-      .string()
-      .optional()
-      .describe(
-        "Any additional constraints mentioned for the job, e.g., country restrictions like 'USA only'.",
-      ),
-  })
-  .describe('Items from the main job listing page');
-
-const JobListPageScrapeSchema = z.object({
-  job_postings: z.array(JobListPageItemSchema),
-});
-
-// Schema for details scraped from individual job posting pages
-const JobDetailScrapeSchema = z
-  .object({
-    region: z.string(),
-    role: z.string(),
-    experience: z.string(),
-    company: z.string(),
-    job_type: z.string(),
-    salary: z.string(),
-  })
-  .describe('Details scraped from individual job posting pages');
-
-export type JobListPageItem = z.infer<typeof JobListPageItemSchema>;
-export type JobListPageScrape = z.infer<typeof JobListPageScrapeSchema>;
-export type AnalyzedJobPosting = JobListPageItem & {
-  isRelevant: boolean;
-  reasoning: string | null;
-};
-export type AnalyzedJobListPageItem = JobListPageItem & {
-  isRelevant: boolean;
-  reasoning: string | null;
-};
+import {
+  AnalyzedJobPosting,
+  JobDetailScrapeSchema,
+  JobListPageItem,
+  JobListPageScrapeSchema,
+} from '../models/job.models';
+import { mapJobListPageItem, mapJobPosting } from '../utils/job.utils';
 
 @Injectable()
 export class JobHuntingService {
@@ -84,50 +47,9 @@ export class JobHuntingService {
     return existingJob !== null;
   }
 
-  private mapJobPosting(job: AnalyzedJobPosting): Prisma.JobCreateInput {
-    return {
-      title: job.job_title,
-      company: '',
-      description: '',
-      url: job.job_link,
-      source: new URL(job.job_link).hostname,
-      status: JobStatus.PENDING,
-      is_relevant: job.isRelevant,
-      relevance_reasoning: job.reasoning || null,
-      posted_date: new Date(job.posted_date_iso),
-      notes: null,
-    };
-  }
-
-  private mapJobListPageItem(
-    job: AnalyzedJobListPageItem,
-  ): Prisma.JobCreateInput {
-    return {
-      title: job.job_title,
-      company: '',
-      description: '',
-      url: job.job_link,
-      source: new URL(job.job_link).hostname,
-      status: JobStatus.PENDING,
-      is_relevant: job.isRelevant,
-      relevance_reasoning: job.reasoning || null,
-      region: null,
-      job_type: null,
-      experience: null,
-      salary: null,
-      posted_date: new Date(job.posted_date_iso),
-      notes: null,
-    };
-  }
-
-  private async storeJob(
-    job: AnalyzedJobPosting | AnalyzedJobListPageItem,
-  ): Promise<void> {
+  private async storeJob(job: AnalyzedJobPosting): Promise<void> {
     try {
-      const data =
-        'company' in job
-          ? this.mapJobPosting(job)
-          : this.mapJobListPageItem(job as AnalyzedJobListPageItem);
+      const data = mapJobPosting(job);
       await this.prisma.job.create({ data });
       this.logger.debug(`Stored job: ${job.job_title}`);
     } catch (error: unknown) {
@@ -145,7 +67,7 @@ export class JobHuntingService {
 
   async storeJobsInDatabase(
     matchedJobs: AnalyzedJobPosting[],
-    irrelevantJobs: AnalyzedJobListPageItem[],
+    irrelevantJobs: AnalyzedJobPosting[],
   ) {
     for (const job of matchedJobs) {
       await this.storeJob(job);
@@ -191,13 +113,12 @@ export class JobHuntingService {
     }
   }
 
-  // Main orchestration method - now with better error handling and progress tracking
   async findJobs(
     jobListUrls: string[],
     progressCallback?: (progress: number, message: string) => void,
   ): Promise<{
     matchedJobs: AnalyzedJobPosting[];
-    irrelevantJobs: AnalyzedJobListPageItem[];
+    irrelevantJobs: AnalyzedJobPosting[];
   }> {
     this.logger.log(
       `Starting job extraction from ${jobListUrls.length} URL(s)...`,
@@ -394,9 +315,9 @@ export class JobHuntingService {
   // Step 4: Analyze job relevance in parallel
   private async analyzeJobRelevance(
     jobs: JobListPageItem[],
-  ): Promise<AnalyzedJobListPageItem[]> {
+  ): Promise<AnalyzedJobPosting[]> {
     const BATCH_SIZE = 5; // Limit concurrent API calls
-    const analyzedJobs: AnalyzedJobListPageItem[] = [];
+    const analyzedJobs: AnalyzedJobPosting[] = [];
 
     for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
       const batch = jobs.slice(i, i + BATCH_SIZE);
@@ -431,9 +352,9 @@ export class JobHuntingService {
   }
 
   // Step 5: Split jobs by relevance
-  private splitJobsByRelevance(analyzedJobs: AnalyzedJobListPageItem[]): {
-    relevantJobs: AnalyzedJobListPageItem[];
-    irrelevantJobs: AnalyzedJobListPageItem[];
+  private splitJobsByRelevance(analyzedJobs: AnalyzedJobPosting[]): {
+    relevantJobs: AnalyzedJobPosting[];
+    irrelevantJobs: AnalyzedJobPosting[];
   } {
     const relevantJobs = analyzedJobs.filter((job) => job.isRelevant);
     const irrelevantJobs = analyzedJobs.filter((job) => !job.isRelevant);
@@ -447,7 +368,7 @@ export class JobHuntingService {
 
   // Step 6: Scrape detailed information for relevant jobs in parallel
   private async scrapeJobDetails(
-    relevantJobs: AnalyzedJobListPageItem[],
+    relevantJobs: AnalyzedJobPosting[],
   ): Promise<AnalyzedJobPosting[]> {
     const BATCH_SIZE = 3; // Limit concurrent scraping to avoid rate limits
     const matchedJobs: AnalyzedJobPosting[] = [];
