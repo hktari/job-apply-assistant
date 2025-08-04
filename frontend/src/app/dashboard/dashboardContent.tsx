@@ -1,25 +1,8 @@
-import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from '@/components/ui/table';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import React, { useState } from 'react';
+import React from 'react';
 import { isError } from 'util';
 import { jobOptions } from '../job';
-import { format } from 'date-fns';
-import Link from 'next/link';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import JobListingsTable from './jobListingsTable';
 
 type Props = {
   page: number;
@@ -50,59 +33,17 @@ const DashboardContent = (props: Props) => {
             {error instanceof Error ? error.message : 'Unknown error'}
           </p>
         </div>
-      ) : data?.data.length === 0 ? (
-        <div className='flex items-center justify-center py-8'>
-          <p className='text-muted-foreground'>No pending jobs found.</p>
-        </div>
       ) : (
-        <div>
-          <div className='rounded-md border'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Date Posted</TableHead>
-                  <TableHead>Relevance</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.data.map((job) => (
-                  <TableRow key={job.id}>
-                    <TableCell className='font-medium'>{job.title}</TableCell>
-                    <TableCell>{job.company || 'N/A'}</TableCell>
-                    <TableCell>{job.source}</TableCell>
-                    <TableCell>
-                      {job.posted_date
-                        ? format(new Date(job.posted_date), 'MMM d, yyyy')
-                        : 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {job.is_relevant ? (
-                        <span className='inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800'>
-                          Relevant
-                        </span>
-                      ) : (
-                        <span className='inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800'>
-                          Not Relevant
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/dashboard/jobs/${job.id}`}>
-                        <Button variant='outline' size='sm'>
-                          Review
-                        </Button>
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <>
+          <div className="mb-4">
+            <h2 className="text-2xl font-bold tracking-tight">Job Listings</h2>
+            <p className="text-muted-foreground">
+              Found {data.meta.total} jobs, showing page {props.page} of{' '}
+              {Math.ceil(data.meta.total / props.limit)}
+            </p>
           </div>
-        </div>
+          <JobListingsTable jobs={data.data} />
+        </>
       )}
     </>
   );

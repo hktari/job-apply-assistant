@@ -15,6 +15,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobStatus } from '@prisma/client';
 import { JobHuntingService } from '../services/job-hunting.service';
+import { JobRelevanceService } from '../services/job-relevance.service';
 import { CreateManualJobDto } from '../dto/create-manual-job.dto';
 import { UpdateJobDto } from '../dto/update-job.dto';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -28,6 +29,7 @@ export class JobController {
     private readonly prismaService: PrismaService,
     @InjectQueue('job-hunting') private readonly jobHuntingQueue: Queue,
     private readonly jobHuntingService: JobHuntingService,
+    private readonly jobRelevanceService: JobRelevanceService,
   ) {}
 
   @Post('discover')
@@ -140,6 +142,48 @@ export class JobController {
         updated_at: new Date(),
       },
     });
+  }
+
+  @Post(':id/rerun-analysis')
+  @ApiOperation({ summary: 'Rerun relevance analysis for a job' })
+  @ApiResponse({
+    status: 200,
+    description: 'The relevance analysis has been successfully rerun.',
+  })
+  @ApiResponse({ status: 404, description: 'Job not found.' })
+  async rerunAnalysis(@Param('id') id: string) {
+    const jobId = parseInt(id, 10);
+
+    // Get the existing job
+    const job = await this.prismaService.job.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'Job not found',
+          error: 'Not Found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    // Run the relevance analysis
+    const analysisResult = await this.jobRelevanceService.rerunAnalysis(job);
+
+    // Update the job with new analysis results
+    const updatedJob = await this.prismaService.job.update({
+      where: { id: jobId },
+      data: {
+        is_relevant: analysisResult.isRelevant,
+        relevance_reasoning: analysisResult.reasoning,
+        updated_at: new Date(),
+      },
+    });
+
+    return updatedJob;
   }
 
   @Post('manual')

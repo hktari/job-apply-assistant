@@ -9,6 +9,7 @@ export const logger = WinstonModule.createLogger({
   transports: [
     new winston.transports.Console({
       format: winston.format.combine(
+        winston.format.colorize(),
         winston.format.timestamp(),
         winston.format.cli(),
         winston.format.simple(),

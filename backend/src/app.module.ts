@@ -15,7 +15,7 @@ import { ExpressAdapter } from '@bull-board/express';
     ApplicationModule,
     BullModule.forRoot({
       connection: {
-        family: 0,
+        family: process.env.RAILWAY_PROJECT_NAME ? 0 : undefined,
         host: process.env.REDIS_HOST || 'localhost',
         password: process.env.REDIS_PASSWORD || undefined,
         port: parseInt(process.env.REDIS_PORT || '6379', 10),

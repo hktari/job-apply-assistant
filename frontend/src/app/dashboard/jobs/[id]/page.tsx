@@ -37,8 +37,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { getQueryClient } from '@/lib/get-query-client';
-import { editJobSchema, UpdateJobRequest } from '@/lib/jobs/api';
+import { editJobSchema, UpdateJobRequest, jobsApi } from '@/lib/jobs/api';
 import { toast } from 'sonner';
+import { RefreshCw } from 'lucide-react';
 
 const verificationSchema = z.object({
   notes: z.string().optional(),
@@ -121,6 +122,21 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
           error instanceof Error ? error.message : 'An unknown error occurred',
       });
       setIsEditing(false);
+    },
+  });
+
+  const rerunAnalysisMutation = useMutation({
+    mutationFn: () => jobsApi.rerunAnalysis(jobId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      toast.success('Relevance analysis updated successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to rerun analysis', {
+        description:
+          error instanceof Error ? error.message : 'An unknown error occurred',
+      });
     },
   });
 
@@ -422,10 +438,29 @@ export default function JobDetailPage({ params }: JobDetailPageParams) {
             <TabsContent value='relevance' className='mt-4 space-y-4'>
               <Card>
                 <CardHeader>
-                  <CardTitle>Relevance Analysis</CardTitle>
-                  <CardDescription>
-                    Review and edit the AI-generated relevance analysis.
-                  </CardDescription>
+                  <div className='flex items-center justify-between'>
+                    <div>
+                      <CardTitle>Relevance Analysis</CardTitle>
+                      <CardDescription>
+                        Review and edit the AI-generated relevance analysis.
+                      </CardDescription>
+                    </div>
+                    {!isEditing && (
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => rerunAnalysisMutation.mutate()}
+                        disabled={rerunAnalysisMutation.isPending}
+                      >
+                        {rerunAnalysisMutation.isPending ? (
+                          <RefreshCw className='h-4 w-4 animate-spin mr-2' />
+                        ) : (
+                          <RefreshCw className='h-4 w-4 mr-2' />
+                        )}
+                        Rerun Analysis
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className='space-y-4'>
                   <div className='flex items-center gap-2'>

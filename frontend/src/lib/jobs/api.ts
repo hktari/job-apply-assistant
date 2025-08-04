@@ -121,6 +121,11 @@ export const jobsApi = {
   triggerJobDiscovery(): Promise<{ jobId: string; status: string }> {
     return api.post('/jobs/discover').then((response) => response.data);
   },
+
+  // Rerun relevance analysis for a job
+  rerunAnalysis(id: number): Promise<Job> {
+    return api.post(`/jobs/${id}/rerun-analysis`).then((response) => response.data);
+  },
 };
 
 export default api;

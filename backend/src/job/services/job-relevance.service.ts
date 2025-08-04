@@ -4,6 +4,8 @@ import { OpenAI } from 'openai';
 import { ProfileService } from '../../profile/services/profile.service';
 import { ProfileData } from 'src/profile/dtos/profile.dto';
 import { LLMObservabilityService } from './llm/llm-observability.service';
+import { JobListPageItem } from '../models/job.models';
+import { Job } from '@prisma/client';
 
 export type JobPreferences = Record<string, any>;
 
@@ -127,5 +129,25 @@ Is this job title relevant based on these preferences? Provide your answer in th
       this.logger.error('Error in analyzeJobTitleRelevance:', error);
       throw error;
     }
+  }
+
+  /**
+   * Rerun relevance analysis for an existing job.
+   * @param job The job object to reanalyze.
+   * @returns A promise that resolves to an AIRelevanceResponse object.
+   */
+  async rerunAnalysis(
+    job: JobListPageItem | Job,
+  ): Promise<AIRelevanceResponse> {
+    this.logger.log(
+      `Rerunning relevance analysis for job: ${
+        'job_title' in job ? job.job_title : job.title
+      }`,
+    );
+
+    // Use the job title for analysis
+    const jobTitle = 'job_title' in job ? job.job_title : job.title;
+
+    return this.analyzeRelevance(jobTitle);
   }
 }

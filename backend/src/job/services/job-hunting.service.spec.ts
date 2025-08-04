@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
-  AnalyzedJobListPageItem,
+  AnalyzedJobPosting,
   AnalyzedJobPosting,
   JobHuntingService,
 } from './job-hunting.service';
@@ -99,8 +99,8 @@ describe('JobHuntingService', () => {
       });
     });
 
-    it('should correctly map AnalyzedJobListPageItem', () => {
-      const jobListItem: AnalyzedJobListPageItem = {
+    it('should correctly map AnalyzedJobPosting', () => {
+      const jobListItem: AnalyzedJobPosting = {
         job_title: 'Frontend Developer',
         job_link: 'https://example.com/job/456',
         isRelevant: false,
@@ -138,7 +138,7 @@ describe('JobHuntingService', () => {
       reasoning: 'Test relevant skills',
     };
 
-    const testJobListPageItem: AnalyzedJobListPageItem = {
+    const testJobListPageItem: AnalyzedJobPosting = {
       job_title: 'Test Frontend Developer List',
       job_link: 'https://example.com/test/job/list/456',
       isRelevant: false,
@@ -179,7 +179,7 @@ describe('JobHuntingService', () => {
       expect(storedJob?.status).toBe(JobStatus.PENDING);
     });
 
-    it('should store an AnalyzedJobListPageItem correctly', async () => {
+    it('should store an AnalyzedJobPosting correctly', async () => {
       await service['storeJob'](testJobListPageItem);
       const storedJob = await prismaService.job.findUnique({
         where: { url: testJobListPageItem.job_link },
