@@ -22,7 +22,7 @@ export const JobListPageScrapeSchema = z.object({
 });
 
 // Schema for details scraped from individual job posting pages
-export const JobDetailScrapeSchema = z
+export const JobDetailsSchema = z
   .object({
     region: z.string(),
     role: z.string(),
@@ -40,4 +40,6 @@ export type AnalyzedJobPosting = JobListPageItem & {
 
 export type JobListPageItem = z.infer<typeof JobListPageItemSchema>;
 export type JobListPageScrape = z.infer<typeof JobListPageScrapeSchema>;
-export type JobDetailScrape = z.infer<typeof JobDetailScrapeSchema>;
+export type JobDetails = z.infer<typeof JobDetailsSchema>;
+
+export interface EnrichedJobPosting extends AnalyzedJobPosting, JobDetails {}

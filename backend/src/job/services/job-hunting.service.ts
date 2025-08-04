@@ -12,7 +12,9 @@ import { LLMScraperImpl } from './llm/llm-scraper';
 import { openai } from '@ai-sdk/openai';
 import {
   AnalyzedJobPosting,
-  JobDetailScrapeSchema,
+  EnrichedJobPosting,
+  JobDetails,
+  JobDetailsSchema,
   JobListPageItem,
   JobListPageScrapeSchema,
 } from '../models/job.models';
@@ -157,14 +159,15 @@ export class JobHuntingService {
 
       // Step 6: Scrape detailed information for relevant jobs (parallelized)
       progressCallback?.(80, 'Scraping detailed job information...');
-      const matchedJobs = await this.scrapeJobDetails(relevantJobs);
+      const enrichedJobs =
+        await this.enrichjobListItemsWithDetails(relevantJobs);
 
       progressCallback?.(100, 'Job discovery completed');
       this.logger.log(
-        `Job discovery completed. Found ${matchedJobs.length} relevant jobs and ${irrelevantJobs.length} irrelevant jobs.`,
+        `Job discovery completed. Found ${enrichedJobs.length} relevant jobs and ${irrelevantJobs.length} irrelevant jobs.`,
       );
 
-      return { matchedJobs, irrelevantJobs };
+      return { matchedJobs: enrichedJobs, irrelevantJobs };
     } catch (error) {
       this.logger.error('Error in job discovery process:', error);
       throw error;
@@ -367,66 +370,21 @@ export class JobHuntingService {
   }
 
   // Step 6: Scrape detailed information for relevant jobs in parallel
-  private async scrapeJobDetails(
+  private async enrichjobListItemsWithDetails(
     relevantJobs: AnalyzedJobPosting[],
-  ): Promise<AnalyzedJobPosting[]> {
+  ): Promise<EnrichedJobPosting[]> {
     const BATCH_SIZE = 3; // Limit concurrent scraping to avoid rate limits
-    const matchedJobs: AnalyzedJobPosting[] = [];
+    const matchedJobs: EnrichedJobPosting[] = [];
 
     for (let i = 0; i < relevantJobs.length; i += BATCH_SIZE) {
       const batch = relevantJobs.slice(i, i + BATCH_SIZE);
       const scrapingPromises = batch.map(async (job) => {
         try {
-          const detailScrapeResult = await this.detailScraper.scrapeUrl(
-            job.job_link,
-            JobDetailScrapeSchema,
-            {
-              prompt: `
-              Extract the following job details:
-              - region: The location/region where the job is based
-              - role: The full job description or role details
-              - experience: Any mentioned experience requirements
-              - company: The company name
-              - job_type: The type of employment (e.g., full-time, contract)
-              - salary: Any salary or compensation information
-              
-              Return null for any fields that are not found in the content.`,
-            },
-          );
-
-          if (!detailScrapeResult.success || !detailScrapeResult.json) {
-            this.logger.warn(
-              `Failed to scrape job details from ${job.job_link}: ${detailScrapeResult.error || 'No data returned'}`,
-            );
-            return null;
-          }
-
-          const parsedDetailData = JobDetailScrapeSchema.safeParse(
-            detailScrapeResult.json,
-          );
-
-          if (!parsedDetailData.success) {
-            this.logger.error(
-              `Failed to parse job details from ${job.job_link}:`,
-              parsedDetailData.error.errors,
-            );
-            return null;
-          }
-
-          const jobWithDetails: AnalyzedJobPosting = {
-            ...parsedDetailData.data,
-            job_title: job.job_title,
-            job_link: job.job_link,
-            posted_date_iso: job.posted_date_iso,
-            constraints: job.constraints,
-            isRelevant: job.isRelevant,
-            reasoning: job.reasoning,
+          const details = await this.scrapeJobDetails(job.job_link);
+          return {
+            ...job,
+            ...details,
           };
-
-          this.logger.debug(
-            `Successfully scraped details for job: ${job.job_title}`,
-          );
-          return jobWithDetails;
         } catch (error: any) {
           this.logger.error(
             `Error scraping job details for ${job.job_title}: ${error.message}`,
@@ -438,7 +396,7 @@ export class JobHuntingService {
       const batchResults = await Promise.all(scrapingPromises);
       matchedJobs.push(
         ...batchResults.filter(
-          (job): job is AnalyzedJobPosting => job !== null,
+          (job): job is EnrichedJobPosting => job !== null,
         ),
       );
     }
@@ -447,5 +405,57 @@ export class JobHuntingService {
       `Successfully scraped details for ${matchedJobs.length} jobs.`,
     );
     return matchedJobs;
+  }
+
+  private async scrapeJobDetails(jobLink: string): Promise<JobDetails | null> {
+    try {
+      const detailScrapeResult = await this.detailScraper.scrapeUrl(
+        jobLink,
+        JobDetailsSchema,
+        {
+          prompt: `
+          Extract the following job details:
+          - region: The location/region where the job is based
+          - role: The full job description or role details
+          - experience: Any mentioned experience requirements
+          - company: The company name
+          - job_type: The type of employment (e.g., full-time, contract)
+          - salary: Any salary or compensation information
+          
+          Return null for any fields that are not found in the content.`,
+        },
+      );
+
+      if (!detailScrapeResult.success || !detailScrapeResult.json) {
+        this.logger.warn(
+          `Failed to scrape job details from ${jobLink}: ${detailScrapeResult.error || 'No data returned'}`,
+        );
+        return null;
+      }
+
+      const parsedDetailData = JobDetailsSchema.safeParse(
+        detailScrapeResult.json,
+      );
+
+      if (!parsedDetailData.success) {
+        this.logger.error(
+          `Failed to parse job details from ${jobLink}:`,
+          parsedDetailData.error.errors,
+        );
+        return null;
+      }
+
+      const jobWithDetails: JobDetails = {
+        ...parsedDetailData.data,
+      };
+
+      this.logger.debug(`Successfully scraped details for job URL: ${jobLink}`);
+      return jobWithDetails;
+    } catch (error: any) {
+      this.logger.error(
+        `Error scraping job details for ${jobLink}: ${error.message}`,
+      );
+      return null;
+    }
   }
 }
