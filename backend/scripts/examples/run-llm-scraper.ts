@@ -2,29 +2,17 @@ import z from 'zod';
 import { LLMScraperImpl } from '../../src/job/services/llm/llm-scraper';
 import { openai } from '@ai-sdk/openai';
 import { config } from 'dotenv';
+import { JobDetailsSchema } from '../../src/job/models/job.models';
 
 config();
 
-const scraper = new LLMScraperImpl(openai.chat('gpt-4o'));
-
-const featuredPost = z.object({
-  posts: z
-    .array(
-      z.object({
-        title: z.string(),
-        url: z.string(),
-        posted_date_iso: z.string(),
-        author: z.string(),
-      }),
-    )
-    .describe('Featured posts'),
-});
+const scraper = new LLMScraperImpl(openai.chat('gpt-4.1'));
 
 async function main() {
   const result = await scraper.scrapeUrl(
-    'https://blog.logrocket.com/',
-    featuredPost,
-    { prompt: 'Scrape the page for featured posts' },
+    'https://www.optius.com/iskalci/prosta-delovna-mesta/visji-analitik-programer-mz-921819-921819/',
+    JobDetailsSchema,
+    { prompt: 'Scrape the page for job details' },
   );
 
   console.log(JSON.stringify(result, null, 2));

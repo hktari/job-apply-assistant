@@ -7,7 +7,7 @@ import {
   TableBody,
   TableCell,
 } from '@/components/ui/table';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import { isError } from 'util';
 import { jobOptions } from '../job';
@@ -20,6 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { jobsApi } from '@/lib/jobs/api';
+import { toast } from 'sonner';
+import { RefreshCw } from 'lucide-react';
 
 type Props = {
   page: number;
@@ -30,12 +33,30 @@ type Props = {
 };
 
 const DashboardContent = (props: Props) => {
+  const queryClient = useQueryClient();
   const { data, error } = useSuspenseQuery(
     jobOptions(props.page, props.limit, props.relevance),
   );
 
   const isLoading = !data && !error;
   const isError = error instanceof Error;
+
+  const rerunAnalysisMutation = useMutation({
+    mutationFn: (jobId: number) => jobsApi.rerunAnalysis(jobId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      toast.success('Relevance analysis updated successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to rerun analysis', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    },
+  });
+
+  const handleRerunAnalysis = (jobId: number) => {
+    rerunAnalysisMutation.mutate(jobId);
+  };
 
   return (
     <>
@@ -91,11 +112,25 @@ const DashboardContent = (props: Props) => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Link href={`/dashboard/jobs/${job.id}`}>
-                        <Button variant='outline' size='sm'>
-                          Review
+                      <div className='flex gap-2'>
+                        <Link href={`/dashboard/jobs/${job.id}`}>
+                          <Button variant='outline' size='sm'>
+                            Review
+                          </Button>
+                        </Link>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => handleRerunAnalysis(job.id)}
+                          disabled={rerunAnalysisMutation.isPending}
+                        >
+                          {rerunAnalysisMutation.isPending ? (
+                            <RefreshCw className='h-4 w-4 animate-spin' />
+                          ) : (
+                            <RefreshCw className='h-4 w-4' />
+                          )}
                         </Button>
-                      </Link>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
