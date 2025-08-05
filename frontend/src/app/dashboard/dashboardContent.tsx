@@ -35,14 +35,19 @@ const DashboardContent = (props: Props) => {
         </div>
       ) : (
         <>
-          <div className="mb-4">
-            <h2 className="text-2xl font-bold tracking-tight">Job Listings</h2>
-            <p className="text-muted-foreground">
+          <div className='mb-4'>
+            <h2 className='text-2xl font-bold tracking-tight'>Job Listings</h2>
+            <p className='text-muted-foreground'>
               Found {data.meta.total} jobs, showing page {props.page} of{' '}
               {Math.ceil(data.meta.total / props.limit)}
             </p>
           </div>
-          <JobListingsTable jobs={data.data} />
+          <JobListingsTable
+            jobs={data.data}
+            page={props.page}
+            limit={props.limit}
+            relevance={props.relevance}
+          />
         </>
       )}
     </>
