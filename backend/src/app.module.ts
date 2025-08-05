@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from './config/config.module';
 import { JobModule } from './job/job.module';
 import { ProfileModule } from './profile/profile.module';
@@ -10,6 +11,7 @@ import { ExpressAdapter } from '@bull-board/express';
 @Module({
   imports: [
     ConfigModule,
+    ScheduleModule.forRoot(),
     JobModule,
     ProfileModule,
     ApplicationModule,

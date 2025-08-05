@@ -9,6 +9,8 @@ import { JobSourceManual } from '../interface';
 import { LLMScraperImpl } from './llm/llm-scraper';
 import { openai } from '@ai-sdk/openai';
 import { ScrapeResponse } from '@mendable/firecrawl-js';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import {
   AnalyzedJobPosting,
   EnrichedJobPosting,
@@ -28,6 +30,8 @@ export class JobHuntingService {
     private prisma: PrismaService,
     private jobRelevanceService: JobRelevanceService,
     private configService: ConfigService,
+    @InjectQueue('job-field-population')
+    private readonly fieldPopulationQueue: Queue,
   ) {
     this.listScraper = new LLMScraperImpl(
       openai.chat(
@@ -111,17 +115,21 @@ export class JobHuntingService {
       // If title or company is missing, trigger background scraping to populate fields
       if (!title || !companyName) {
         this.logger.log(
-          `Missing fields detected for job ${job.id}. Triggering background scraping...`,
+          `Missing fields detected for job ${job.id}. Queuing background scraping...`,
         );
-        // Use setTimeout to make this truly asynchronous and non-blocking
-        setTimeout(() => {
-          this.populateMissingJobFields(job.id).catch((error) => {
-            this.logger.error(
-              `Failed to populate missing fields for job ${job.id}:`,
-              error,
-            );
-          });
-        }, 0);
+        // Queue job for background field population
+        await this.fieldPopulationQueue.add(
+          'populate-missing-fields',
+          { jobId: job.id },
+          {
+            delay: 1000, // Small delay to ensure job is committed to DB
+            attempts: 3,
+            backoff: {
+              type: 'exponential',
+              delay: 2000,
+            },
+          },
+        );
       }
 
       return job;
@@ -423,6 +431,58 @@ export class JobHuntingService {
       `Successfully scraped details for ${matchedJobs.length} jobs.`,
     );
     return matchedJobs;
+  }
+
+  /**
+   * Queue pending manual jobs for field population
+   */
+  async queuePendingManualJobs(): Promise<void> {
+    try {
+      // Find manual jobs that need field population
+      const pendingJobs = await this.prisma.job.findMany({
+        where: {
+          source: JobSourceManual,
+          OR: [
+            { title: 'Job Title (To be scraped)' },
+            { title: null as any },
+            { company: null as any },
+          ],
+        },
+        select: { id: true, title: true, company: true, url: true },
+      });
+
+      if (pendingJobs.length === 0) {
+        this.logger.debug('No pending manual jobs found for field population');
+        return;
+      }
+
+      this.logger.log(
+        `Found ${pendingJobs.length} pending manual jobs for field population`,
+      );
+
+      // Queue each job for background processing
+      for (const job of pendingJobs) {
+        await this.fieldPopulationQueue.add(
+          'populate-missing-fields',
+          { jobId: job.id },
+          {
+            attempts: 3,
+            backoff: {
+              type: 'exponential',
+              delay: 2000,
+            },
+            // Remove duplicate jobs with same jobId
+            jobId: `populate-${job.id}`,
+          },
+        );
+      }
+
+      this.logger.log(
+        `Queued ${pendingJobs.length} manual jobs for field population`,
+      );
+    } catch (error: any) {
+      this.logger.error(`Error queuing pending manual jobs: ${error.message}`);
+    }
   }
 
   /**

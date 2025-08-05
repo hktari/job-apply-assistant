@@ -213,4 +213,17 @@ export class JobController {
     }
     return await this.jobHuntingService.createManualJob(createManualJobDto);
   }
+
+  @Post('populate-missing-fields')
+  @ApiOperation({
+    summary: 'Manually trigger field population for pending manual jobs',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Field population has been queued for pending manual jobs.',
+  })
+  async triggerFieldPopulation() {
+    await this.jobHuntingService.queuePendingManualJobs();
+    return { message: 'Field population queued for pending manual jobs' };
+  }
 }
