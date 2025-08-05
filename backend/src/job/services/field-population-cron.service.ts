@@ -26,6 +26,7 @@ export class FieldPopulationCronService {
     );
   }
 
+  // TODO: figure our how to inject cront interval from config
   @Cron('0 */10 * * * *') // Default fallback: every 10 minutes
   async handleCron() {
     // Use dynamic cron interval if different from default

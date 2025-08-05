@@ -439,17 +439,27 @@ export class JobHuntingService {
   async queuePendingManualJobs(): Promise<void> {
     try {
       // Find manual jobs that need field population
-      const pendingJobs = await this.prisma.job.findMany({
-        where: {
-          source: JobSourceManual,
-          OR: [
-            { title: 'Job Title (To be scraped)' },
-            { title: null },
-            { company: null },
-          ],
-        },
-        select: { id: true, title: true, company: true, url: true },
-      });
+      const pendingJobs = await this.prisma.$queryRaw<
+        Array<{
+          id: string;
+          title: string | null;
+          company: string | null;
+          url: string;
+        }>
+      >`
+        SELECT id, title, company, url 
+        FROM job 
+        WHERE source = 'manual'
+          AND (
+            title = 'Job Title (To be scraped)'
+            OR title IS NULL
+            OR title = ''
+            OR TRIM(title) = ''
+            OR company IS NULL
+            OR company = ''
+            OR TRIM(company) = ''
+          )
+      `;
 
       if (pendingJobs.length === 0) {
         this.logger.debug('No pending manual jobs found for field population');
