@@ -1,15 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobRelevanceService } from './job-relevance.service';
-import FirecrawlApp, { ScrapeResponse } from '@mendable/firecrawl-js';
 import { ConfigService } from '@nestjs/config';
-import { z } from 'zod';
-import { Job, JobStatus, Prisma } from '@prisma/client';
+import { Job, JobStatus } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { CreateManualJobDto } from '../dto/create-manual-job.dto';
 import { JobSourceManual } from '../interface';
 import { LLMScraperImpl } from './llm/llm-scraper';
 import { openai } from '@ai-sdk/openai';
+import { ScrapeResponse } from '@mendable/firecrawl-js';
 import {
   AnalyzedJobPosting,
   EnrichedJobPosting,
@@ -18,7 +17,7 @@ import {
   JobListPageItem,
   JobListPageScrapeSchema,
 } from '../models/job.models';
-import { mapJobListPageItem, mapJobPosting } from '../utils/job.utils';
+import { mapJobPosting } from '../utils/job.utils';
 
 @Injectable()
 export class JobHuntingService {
@@ -95,8 +94,8 @@ export class JobHuntingService {
       // Create the job with APPROVED status since it's manually added
       const job = await this.prisma.job.create({
         data: {
-          title,
-          company: companyName,
+          title: title || 'Job Title (To be scraped)',
+          company: companyName || null,
           url,
           source: JobSourceManual,
           status: JobStatus.APPROVED, // Automatically approve manually added jobs
@@ -105,7 +104,26 @@ export class JobHuntingService {
         },
       });
 
-      this.logger.log(`Manually added job: ${title} (ID: ${job.id})`);
+      this.logger.log(
+        `Manually added job: ${title || 'Unknown Title'} (ID: ${job.id})`,
+      );
+
+      // If title or company is missing, trigger background scraping to populate fields
+      if (!title || !companyName) {
+        this.logger.log(
+          `Missing fields detected for job ${job.id}. Triggering background scraping...`,
+        );
+        // Use setTimeout to make this truly asynchronous and non-blocking
+        setTimeout(() => {
+          this.populateMissingJobFields(job.id).catch((error) => {
+            this.logger.error(
+              `Failed to populate missing fields for job ${job.id}:`,
+              error,
+            );
+          });
+        }, 0);
+      }
+
       return job;
     } catch (error: any) {
       this.logger.error(
@@ -405,6 +423,83 @@ export class JobHuntingService {
       `Successfully scraped details for ${matchedJobs.length} jobs.`,
     );
     return matchedJobs;
+  }
+
+  /**
+   * Populate missing fields for a manually added job by scraping the job URL
+   */
+  async populateMissingJobFields(jobId: number): Promise<void> {
+    try {
+      // Get the job from database
+      const job = await this.prisma.job.findUnique({
+        where: { id: jobId },
+      });
+
+      if (!job) {
+        this.logger.error(`Job with ID ${jobId} not found`);
+        return;
+      }
+
+      this.logger.log(
+        `Starting field population for job ${jobId} (${job.url})`,
+      );
+
+      // Scrape job details from the URL
+      const jobDetails = await this.scrapeJobDetails(job.url);
+
+      if (!jobDetails) {
+        this.logger.warn(`Failed to scrape details for job ${jobId}`);
+        return;
+      }
+
+      // Prepare update data - only update fields that are missing
+      const updateData: any = {
+        updated_at: new Date(),
+      };
+
+      // Update title if it's missing or is the placeholder (use 'role' from JobDetails)
+      if (!job.title || job.title === 'Job Title (To be scraped)') {
+        if (jobDetails.role) {
+          updateData.title = jobDetails.role;
+        }
+      }
+
+      // Update company if it's missing
+      if (!job.company && jobDetails.company) {
+        updateData.company = jobDetails.company;
+      }
+
+      // Update other fields that might be missing
+      if (!job.job_type && jobDetails.job_type) {
+        updateData.job_type = jobDetails.job_type;
+      }
+
+      if (!job.experience && jobDetails.experience) {
+        updateData.experience = jobDetails.experience;
+      }
+
+      if (!job.salary && jobDetails.salary) {
+        updateData.salary = jobDetails.salary;
+      }
+
+      if (!job.region && jobDetails.region) {
+        updateData.region = jobDetails.region;
+      }
+
+      // Update the job in database
+      const updatedJob = await this.prisma.job.update({
+        where: { id: jobId },
+        data: updateData,
+      });
+
+      this.logger.log(
+        `Successfully populated missing fields for job ${jobId}: ${updatedJob.title}`,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `Error populating missing fields for job ${jobId}: ${error.message}`,
+      );
+    }
   }
 
   private async scrapeJobDetails(jobLink: string): Promise<JobDetails | null> {

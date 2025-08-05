@@ -5,18 +5,20 @@ export class CreateManualJobDto {
   @ApiProperty({
     description: 'The title of the job',
     example: 'Software Engineer',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  title: string;
+  title?: string;
 
   @ApiProperty({
     description: 'The name of the company',
     example: 'Tech Solutions Inc.',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  company: string;
+  company?: string;
 
   @ApiProperty({
     description: 'The URL of the job posting',

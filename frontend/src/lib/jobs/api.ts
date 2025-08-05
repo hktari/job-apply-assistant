@@ -43,8 +43,8 @@ export interface Job {
   notes: string | null;
 }
 export interface CreateManualJobRequest {
-  title: Job['title'];
-  company: Job['company'];
+  title?: string;
+  company?: string | null;
   url: Job['url'];
   notes: Job['notes'];
 }

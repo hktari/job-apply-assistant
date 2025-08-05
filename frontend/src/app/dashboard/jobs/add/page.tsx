@@ -32,8 +32,8 @@ import { getErrorMessage } from '@/lib/utils';
 
 // Define form validation schema
 const formSchema = z.object({
-  title: z.string().min(1, 'Job title is required'),
-  company: z.string().min(1, 'Company name is required'),
+  title: z.string().optional(),
+  company: z.string().optional(),
   url: z.string().url('Must be a valid URL'),
   notes: z.string().optional(),
 });
@@ -77,8 +77,8 @@ export default function AddJobPage() {
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     addJobMutation.mutate({
-      title: values.title,
-      company: values.company,
+      title: values.title?.trim() || undefined,
+      company: values.company?.trim() || undefined,
       url: values.url,
       notes: values.notes || null,
     });
@@ -91,6 +91,7 @@ export default function AddJobPage() {
           <CardTitle>Add Job</CardTitle>
           <CardDescription>
             Add a job posting manually. The job will be automatically approved.
+            Missing fields will be populated automatically by scraping the job URL.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -101,10 +102,13 @@ export default function AddJobPage() {
                 name='title'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Job Title</FormLabel>
+                    <FormLabel>Job Title (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder='Software Engineer' {...field} />
+                      <Input placeholder='Software Engineer (will be scraped if empty)' {...field} />
                     </FormControl>
+                    <FormDescription>
+                      If left empty, the job title will be automatically scraped from the job URL.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -115,10 +119,13 @@ export default function AddJobPage() {
                 name='company'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Company Name</FormLabel>
+                    <FormLabel>Company Name (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder='Acme Inc.' {...field} />
+                      <Input placeholder='Acme Inc. (will be scraped if empty)' {...field} />
                     </FormControl>
+                    <FormDescription>
+                      If left empty, the company name will be automatically scraped from the job URL.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
