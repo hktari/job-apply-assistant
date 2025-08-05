@@ -528,14 +528,12 @@ export class JobHuntingService {
       };
 
       // Update title if it's missing or is the placeholder (use 'role' from JobDetails)
-      if (!job.title || job.title === 'Job Title (To be scraped)') {
-        if (jobDetails.role) {
-          updateData.title = jobDetails.role;
-        }
+      if (!job.title?.trim() || job.title === 'Job Title (To be scraped)') {
+        updateData.title = jobDetails.title;
       }
 
       // Update company if it's missing
-      if (!job.company && jobDetails.company) {
+      if (!job.company?.trim() && jobDetails.company) {
         updateData.company = jobDetails.company;
       }
 

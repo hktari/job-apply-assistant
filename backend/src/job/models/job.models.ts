@@ -24,6 +24,7 @@ export const JobListPageScrapeSchema = z.object({
 // Schema for details scraped from individual job posting pages
 export const JobDetailsSchema = z
   .object({
+    title: z.string(),
     region: z.string(),
     role: z.string(),
     experience: z.string(),
