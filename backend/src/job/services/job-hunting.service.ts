@@ -448,7 +448,7 @@ export class JobHuntingService {
         }>
       >`
         SELECT id, title, company, url 
-        FROM job 
+        FROM "Job" 
         WHERE source = 'manual'
           AND (
             title = 'Job Title (To be scraped)'
