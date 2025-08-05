@@ -92,12 +92,18 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
+    "setupFilesAfterEnv": [
+      "<rootDir>/../test/setup-tests.ts"
+    ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "transformIgnorePatterns": [
       "node_modules/(?!(llm-scraper)/)"
     ],
+    "moduleNameMapper": {
+      "^langfuse$": "<rootDir>/../test/__mocks__/langfuse.ts"
+    },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],

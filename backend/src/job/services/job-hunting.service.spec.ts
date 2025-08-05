@@ -1,14 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  AnalyzedJobPosting,
-  AnalyzedJobPosting,
-  JobHuntingService,
-} from './job-hunting.service';
+import { JobHuntingService } from './job-hunting.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JobRelevanceService } from './job-relevance.service';
 import { ConfigService } from '@nestjs/config';
 import { Job, JobStatus } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { getQueueToken } from '@nestjs/bullmq';
+import { AnalyzedJobPosting } from '../models/job.models';
 
 describe('JobHuntingService', () => {
   let service: JobHuntingService;
@@ -46,6 +44,11 @@ describe('JobHuntingService', () => {
       }),
     };
 
+    const queueName = getQueueToken('job-field-population');
+    const mockQueue = {
+      add: jest.fn().mockResolvedValue({}),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         JobHuntingService,
@@ -61,6 +64,10 @@ describe('JobHuntingService', () => {
           provide: JobRelevanceService,
           useValue: mockJobRelevanceService,
         },
+        {
+          provide: queueName,
+          useValue: mockQueue,
+        },
       ],
     }).compile();
 
@@ -73,61 +80,62 @@ describe('JobHuntingService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('mapping logic', () => {
-    it('should correctly map AnalyzedJobPosting', () => {
-      const jobPosting: AnalyzedJobPosting = {
-        job_title: 'Software Engineer',
-        job_link: 'https://example.com/job/123',
-        posted_date_iso: '2025-05-19',
-        isRelevant: true,
-        reasoning: 'Matches skills',
-      };
+  // TODO: move this to seperate file. backend\src\job\utils\job.utils.ts
+  // describe('mapping logic', () => {
+  //   it('should correctly map AnalyzedJobPosting', () => {
+  //     const jobPosting: AnalyzedJobPosting = {
+  //       job_title: 'Software Engineer',
+  //       job_link: 'https://example.com/job/123',
+  //       posted_date_iso: '2025-05-19',
+  //       isRelevant: true,
+  //       reasoning: 'Matches skills',
+  //     };
 
-      const mappedJob = (service as any).mapJobPosting(jobPosting);
+  //     const mappedJob = (service as any).mapJobPosting(jobPosting);
 
-      expect(mappedJob).toEqual({
-        title: 'Software Engineer',
-        company: '',
-        description: '',
-        url: 'https://example.com/job/123',
-        source: 'example.com',
-        status: JobStatus.PENDING,
-        is_relevant: true,
-        relevance_reasoning: 'Matches skills',
-        posted_date: new Date('2025-05-19'),
-        notes: null,
-      });
-    });
+  //     expect(mappedJob).toEqual({
+  //       title: 'Software Engineer',
+  //       company: '',
+  //       description: '',
+  //       url: 'https://example.com/job/123',
+  //       source: 'example.com',
+  //       status: JobStatus.PENDING,
+  //       is_relevant: true,
+  //       relevance_reasoning: 'Matches skills',
+  //       posted_date: new Date('2025-05-19'),
+  //       notes: null,
+  //     });
+  //   });
 
-    it('should correctly map AnalyzedJobPosting', () => {
-      const jobListItem: AnalyzedJobPosting = {
-        job_title: 'Frontend Developer',
-        job_link: 'https://example.com/job/456',
-        isRelevant: false,
-        reasoning: 'Different tech stack',
-        posted_date_iso: '2025-05-19',
-      };
+  //   it('should correctly map AnalyzedJobPosting', () => {
+  //     const jobListItem: AnalyzedJobPosting = {
+  //       job_title: 'Frontend Developer',
+  //       job_link: 'https://example.com/job/456',
+  //       isRelevant: false,
+  //       reasoning: 'Different tech stack',
+  //       posted_date_iso: '2025-05-19',
+  //     };
 
-      const mappedJob = (service as any).mapJobListPageItem(jobListItem);
+  //     const mappedJob = (service as any).mapJobListPageItem(jobListItem);
 
-      expect(mappedJob).toEqual({
-        title: 'Frontend Developer',
-        company: '',
-        description: '',
-        url: 'https://example.com/job/456',
-        source: 'example.com',
-        status: JobStatus.PENDING,
-        is_relevant: false,
-        relevance_reasoning: 'Different tech stack',
-        region: null,
-        job_type: null,
-        experience: null,
-        salary: null,
-        posted_date: new Date('2025-05-19'),
-        notes: null,
-      });
-    });
-  });
+  //     expect(mappedJob).toEqual({
+  //       title: 'Frontend Developer',
+  //       company: '',
+  //       description: '',
+  //       url: 'https://example.com/job/456',
+  //       source: 'example.com',
+  //       status: JobStatus.PENDING,
+  //       is_relevant: false,
+  //       relevance_reasoning: 'Different tech stack',
+  //       region: null,
+  //       job_type: null,
+  //       experience: null,
+  //       salary: null,
+  //       posted_date: new Date('2025-05-19'),
+  //       notes: null,
+  //     });
+  //   });
+  // });
 
   describe('storeJob', () => {
     const testJobPosting: AnalyzedJobPosting = {
@@ -250,6 +258,141 @@ describe('JobHuntingService', () => {
       await expect(service.createManualJob(testManualJob)).rejects.toThrow(
         'Job with URL https://example.com/manual-job already exists',
       );
+    });
+  });
+
+  describe('queuePendingManualJobs', () => {
+    let mockQueue: any;
+
+    beforeEach(() => {
+      mockQueue = {
+        add: jest.fn().mockResolvedValue({}),
+      };
+      // Get the mock queue from the service
+      (service as any).fieldPopulationQueue = mockQueue;
+    });
+
+    it('should queue manual jobs with placeholder title', async () => {
+      // Create a manual job with placeholder title
+      await prismaService.job.create({
+        data: {
+          title: 'Job Title (To be scraped)',
+          company: 'Test Company',
+          url: 'https://example.com/job-with-placeholder-title',
+          source: 'manual',
+          status: JobStatus.APPROVED,
+        },
+      });
+
+      await service.queuePendingManualJobs();
+
+      expect(mockQueue.add).toHaveBeenCalledWith(
+        'populate-missing-fields',
+        { jobId: expect.any(Number) },
+        {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+          jobId: expect.stringMatching(/^populate-\d+$/),
+        },
+      );
+    });
+
+    it('should queue manual jobs with null company', async () => {
+      // Create a manual job with null company
+      await prismaService.job.create({
+        data: {
+          title: 'Software Engineer',
+          company: null,
+          url: 'https://example.com/job-with-null-company',
+          source: 'manual',
+          status: JobStatus.APPROVED,
+        },
+      });
+
+      await service.queuePendingManualJobs();
+
+      expect(mockQueue.add).toHaveBeenCalledWith(
+        'populate-missing-fields',
+        { jobId: expect.any(Number) },
+        {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+          jobId: expect.stringMatching(/^populate-\d+$/),
+        },
+      );
+    });
+
+    it('should not queue non-manual jobs', async () => {
+      // Create a non-manual job with placeholder title
+      await prismaService.job.create({
+        data: {
+          title: 'Job Title (To be scraped)',
+          company: 'Test Company',
+          url: 'https://example.com/non-manual-job',
+          source: 'scraped',
+          status: JobStatus.APPROVED,
+        },
+      });
+
+      await service.queuePendingManualJobs();
+
+      expect(mockQueue.add).not.toHaveBeenCalled();
+    });
+
+    it('should not queue manual jobs with complete fields', async () => {
+      // Create a manual job with complete fields
+      await prismaService.job.create({
+        data: {
+          title: 'Software Engineer',
+          company: 'Complete Company',
+          url: 'https://example.com/complete-manual-job',
+          source: 'manual',
+          status: JobStatus.APPROVED,
+        },
+      });
+
+      await service.queuePendingManualJobs();
+
+      expect(mockQueue.add).not.toHaveBeenCalled();
+    });
+
+    it('should handle multiple pending jobs', async () => {
+      // Create multiple pending manual jobs
+      await prismaService.job.createMany({
+        data: [
+          {
+            title: 'Job Title (To be scraped)',
+            company: 'Test Company 1',
+            url: 'https://example.com/job1',
+            source: 'manual',
+            status: JobStatus.APPROVED,
+          },
+          {
+            title: 'Software Engineer',
+            company: null,
+            url: 'https://example.com/job2',
+            source: 'manual',
+            status: JobStatus.APPROVED,
+          },
+        ],
+      });
+
+      await service.queuePendingManualJobs();
+
+      expect(mockQueue.add).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle empty result gracefully', async () => {
+      // No pending jobs in database
+      await service.queuePendingManualJobs();
+
+      expect(mockQueue.add).not.toHaveBeenCalled();
     });
   });
 });

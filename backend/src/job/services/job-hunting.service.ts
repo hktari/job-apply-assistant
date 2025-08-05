@@ -444,8 +444,8 @@ export class JobHuntingService {
           source: JobSourceManual,
           OR: [
             { title: 'Job Title (To be scraped)' },
-            { title: null as any },
-            { company: null as any },
+            { title: null },
+            { company: null },
           ],
         },
         select: { id: true, title: true, company: true, url: true },

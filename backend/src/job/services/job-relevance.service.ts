@@ -139,14 +139,19 @@ Is this job title relevant based on these preferences? Provide your answer in th
   async rerunAnalysis(
     job: JobListPageItem | Job,
   ): Promise<AIRelevanceResponse> {
+    const jobId = 'id' in job ? job.id : undefined;
     this.logger.log(
-      `Rerunning relevance analysis for job: ${
+      `Rerunning relevance analysis for job: [${jobId || 'unknown'}] ${
         'job_title' in job ? job.job_title : job.title
       }`,
     );
 
     // Use the job title for analysis
     const jobTitle = 'job_title' in job ? job.job_title : job.title;
+
+    if (!jobTitle) {
+      throw new Error('Job title is missing');
+    }
 
     return this.analyzeRelevance(jobTitle);
   }
